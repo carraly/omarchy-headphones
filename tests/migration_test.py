@@ -26,7 +26,7 @@ class MigrationTests(unittest.TestCase):
             uuid = old.SOUNDCORE_UUID_PREFIX + suffix
             context = {'name': 'reported name', 'uuids': [uuid.upper()]}
             expected = old.model_for(uuid)
-            self.assertEqual(model_parameters(row, context), {key: expected[key] for key in ('offset', 'query')})
+            self.assertEqual(model_parameters(row, context), {key: expected[key] for key in ('offset', 'width', 'query') if key in expected})
             self.assertEqual(transport_for(row, context)['uuidPreference'], [uuid])
 
     def test_migration_refuses_disconnected_or_wrong_brand(self):

@@ -78,18 +78,30 @@ class Adapter(Protocol):
             if cmd == CMD_STATE_UPDATE:
                 self.handshake_seen = True
                 offset = self.model['offset']
-                if len(body) >= offset + 6:
-                    self.observed(body[offset:offset + 6])
+                if len(body) >= offset + self.width():
+                    self.observed(body[offset:offset + self.width()])
                 if self.model['query']:
                     self.query()
                 if self.params is None:
                     self.schedule(3000, 'deadline')
-            elif cmd == CMD_SOUND_MODES_NOTIFY and len(body) >= 6:
+            elif cmd == CMD_SOUND_MODES_NOTIFY and len(body) >= self.width():
                 self.query_answered = True
-                self.observed(body[:6])
+                self.observed(body[:self.width()])
+
+    def width(self):
+        # Six bytes unless the model says otherwise: mode, four fields, then the
+        # ambient level. The Life Q30's block is four wide and has neither the
+        # level nor the wind-noise switch, so it reports the mode alone.
+        return self.model.get('width', 6)
 
     def observed(self, params):
-        if params[0] not in MODE_FROM_BYTE or not 1 <= params[5] <= 5:
+        if params[0] not in MODE_FROM_BYTE:
+            return
+        if len(params) < 6:
+            self.params = list(params)
+            self.report({'noise.mode': MODE_FROM_BYTE[params[0]]}, {'noise.mode': {'values': AVAILABLE}})
+            return
+        if not 1 <= params[5] <= 5:
             return
         self.params = list(params)
         self.report({'noise.mode': MODE_FROM_BYTE[params[0]], 'ambient.level': params[5], 'noise.wind_reduction': bool(params[4])},
@@ -101,6 +113,8 @@ class Adapter(Protocol):
         body = list(self.params)
         if control == 'noise.mode' and value in BYTE_FROM_MODE:
             body[0] = BYTE_FROM_MODE[value]
+        elif len(body) < 6:
+            return
         elif control == 'ambient.level' and type(value) is int and 1 <= value <= 5:
             body[5] = value
         elif control == 'noise.wind_reduction' and type(value) is bool:

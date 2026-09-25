@@ -63,6 +63,14 @@
     "query": {
       "type": "boolean",
       "required": true
+    },
+    "width": {
+      "type": "integer",
+      "required": false,
+      "values": [
+        4,
+        6
+      ]
     }
   },
   "unknownModel": {
@@ -99,6 +107,16 @@
       },
       "parameters": {
         "offset": 69,
+        "query": true
+      }
+    },
+    "b302a": {
+      "match": {
+        "uuid": "0cf12d31-fac3-4553-bd80-d6832e7b302a"
+      },
+      "parameters": {
+        "offset": 35,
+        "width": 4,
         "query": true
       }
     }

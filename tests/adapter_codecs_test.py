@@ -116,6 +116,27 @@ class NativeCodecs(unittest.TestCase):
         self.assertEqual(replay.session.state.values['ambient.level'], 5)
         self.assertIs(replay.session.state.values['noise.wind_reduction'], True)
 
+    def test_soundcore_life_q30_four_byte_block_matches_its_pin(self):
+        """The owner's frozen Life Q30 frames through the native codec: the mode
+        from the four-byte block, no level or wind switch, and a set that posts
+        the four observed bytes back with only the mode changed."""
+        pin = json.loads((ROOT/'tests/pins/soundcore/life-q30.json').read_text())
+        devices = [s['device'] for s in pin['steps'] if 'device' in s]
+        row = get_adapter('soundcore')
+        context = {'name': 'reported name', 'uuids': ['0cf12d31-fac3-4553-bd80-d6832e7b302a']}
+        replay = Replay(load_protocol(row, context))
+        replay.receive(wire('soundcore', devices[0]))
+        self.assertEqual(replay.session.state.values, {'noise.mode': 'anc'})
+        self.assertEqual(replay.sent, ['08 ee 00 00 00 06 01 0a 00 07'])
+        replay.receive(wire('soundcore', devices[1]))
+        replay.command('ambient.level', 3); replay.command('noise.wind_reduction', True)
+        self.assertEqual(len(replay.sent), 1)
+        replay.command('noise.mode', 'ambient')
+        self.assertEqual(replay.sent[-1], '08 ee 00 00 00 06 81 0e 00 01 01 00 00 8d')
+        self.assertEqual(replay.session.state.values, {'noise.mode': 'anc'})
+        replay.receive(wire('soundcore', devices[3]))
+        self.assertEqual(replay.session.state.values, {'noise.mode': 'ambient'})
+
     def test_soundcore_bad_checksum_zero_length_and_partial_record_are_not_state(self):
         replay = new('soundcore')
         first = wire('soundcore', next(s['device'] for s in pin_for('soundcore')['steps'] if 'device' in s))
