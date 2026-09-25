@@ -1,9 +1,38 @@
 # Adapter refactor candidate — local validation
 
-Branch: `codex/adapter-session-evidence`.
+Branch: `architecture-v2` (started as `codex/adapter-session-evidence`).
 
 Built from the combined adapter branch at `d1d6e80` and current Omaphones 1.3.3
 at `f0f8006`. The merge retains the refactor tests and the WH-CH520 owner test.
+
+## Rebased onto 1.3.11 (2026-09-25)
+
+`architecture-v2` merged main at `c0d92fc` (1.3.11) in `87e38f7`. Two
+conflicts: `DeviceFollower.qml` keeps `ancBackoffKey` and adds main's
+`cycleChannel` on a transient JBL exit; `tests/model.test.js` keeps both
+sides' tests. After the merge the migration and adapter tests caught four
+places where the adapters did not know what main had added since 1.3.3. Each
+is ported in its own commit, copying the bridge's row or frames:
+
+- `f19facb` Nothing: CMF Buds 2 / Buds 2 on RFCOMM channel 16 (#14).
+- `42d9cbd` Soundcore: Life Q30 (`b302a`, offset 35, four-byte block, #18);
+  the codec gained `width` and reports the mode alone from four bytes. New
+  codec test on the owner's frozen frames.
+- `2f5d73c` Sony native codec: WH-1000XM4 ambient as ncValue 0 with effect
+  0x11, and the last reported ambient level on a switch back (#21).
+- `d8ce83e` JBL: Wave Buds 2 handles 0xa205 / 0xa202 by Fast Pair model id
+  (#17), as model transport fields; the replay takes the pin's `model_id`.
+
+Bose QC45 / QC35 (#13, #22) need no port: Bose runs through its bridge on this
+branch and no adapter test replays its pins natively.
+
+`CHECK_BASE=origin/main tools/check` passes (354 Python tests, adapter API and
+packages, generated registry, device evidence, Model.js, pins unchanged, QML
+lint, plugin validation). Bridges, the Fast Pair reader, pins and captures are
+byte for byte main's (`git diff --exit-code origin/main -- '*-bridge'
+gfps-reader tests/pins docs/captures`). None of the four ports was run on
+hardware: they are replay parity with the bridges, not owner evidence. The
+hardware status below is unchanged and refers to the pre-rebase candidates.
 
 ## Implemented
 
