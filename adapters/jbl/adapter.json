@@ -33,6 +33,10 @@
   },
   "status": "active",
   "entry": "protocol.py",
+  "modelTransportFields": [
+    "writeHandle",
+    "notifyHandle"
+  ],
   "transport": {
     "kind": "ble-gatt",
     "addressField": "bleAddress",
@@ -50,6 +54,16 @@
         "name": "JBL TUNE230NC TWS"
       },
       "parameters": {}
+    },
+    "JBL Wave Buds 2": {
+      "match": {
+        "modelId": "ea59a0"
+      },
+      "parameters": {},
+      "transport": {
+        "writeHandle": "0xa202",
+        "notifyHandle": "0xa205"
+      }
     }
   }
 }

@@ -8,7 +8,7 @@ from unittest.mock import patch
 from tests import harness, canonical
 from omaphones.api import Event, Report, Protocol, Send
 from omaphones.platform import GLibClock
-from omaphones.registry import ROOT, descriptors, get_adapter, load_protocol, model_parameters, select
+from omaphones.registry import ROOT, descriptors, get_adapter, load_protocol, model_parameters, select, transport_for
 from omaphones.session import Session
 from omaphones.state import State, legacy_command
 from omaphones.transports import GattTransport
@@ -156,14 +156,16 @@ class FakePipe:
 
 
 class JblReplay:
-    def __init__(self):
+    def __init__(self, model_id=""):
         self.clock = Clock()
         self.glib = GattGLib(self.clock)
         self.lines = []
         self.frames = []
         self.row = get_adapter("jbl")
-        self.bridge = load_protocol(self.row, {})
-        self.transport = GattTransport(self.row["transport"], {"bleAddress": "48:B4:41:00:00:01"}, self.glib)
+        # The pin's Fast Pair model id picks the handles, as it does for jbl-bridge.
+        context = {"modelId": model_id} if model_id else {}
+        self.bridge = load_protocol(self.row, context)
+        self.transport = GattTransport(transport_for(self.row, context), {"bleAddress": "48:B4:41:00:00:01"}, self.glib)
         pipe = FakePipe(self.frames)
         self.client = types.SimpleNamespace(stdin=pipe, stdout=pipe, wait=lambda **kwargs: 0)
         self.session = Session(self.bridge, self.transport, self.clock, lambda state: self.lines.append(state.legacy()), self.ended)
