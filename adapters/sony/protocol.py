@@ -203,8 +203,9 @@ def parse_ncasm_v1(payload):
     nc_value = payload[4]
     return {
         "inquired": payload[1],
-        # ncValue: 0 off, 1 SINGLE (ambient), 2 DUAL (noise cancelling).
-        "mode": "off" if not on else ("ambient" if nc_value == 0x01 else "anc"),
+        # ncValue: 0 OFF, 1 SINGLE (wind reduction), 2 DUAL (noise cancelling).
+        # With the effect on and NC off, what is left is ambient sound.
+        "mode": "off" if not on else ("ambient" if nc_value == 0x00 else "anc"),
         "voice": payload[6] == 0x01,      # asmId, 1 is voice
         "level": payload[7],              # asmValue, 0-20
         # ncType, the value a SET must echo back, the way 0x15's ncValue is.
@@ -223,6 +224,10 @@ class Adapter(Protocol):
         self.inquired = None
         self.mode = ""
         self.level = 0
+        # v1 only: the last ambient level the headset reported above zero. It
+        # reports 0 in noise cancelling, so going back to ambient with the
+        # reported level would always start at the bottom of the dial.
+        self.ambient_level = 0
         self.voice = False
         self.nc_value = NC_VALUE_DEFAULT
         self.worn = None
@@ -257,7 +262,12 @@ class Adapter(Protocol):
             return
         available = AVAILABLE.get(self.inquired, ["off", "anc", "ambient"])
         if control == "noise.mode" and value in available:
-            self.push(self.set_frame(value, self.level, self.voice))
+            level = self.level
+            if self.inquired == 0x02 and value == "ambient" and not level:
+                # Back to the level this headset last said it had in ambient.
+                # Nothing remembered yet is the bottom of the dial, as before.
+                level = self.ambient_level
+            self.push(self.set_frame(value, level, self.voice))
         elif control == "ambient.level" and "ambient" in available:
             self.push(self.set_frame("ambient", value, self.voice))
         elif control == "ambient.focus_on_voice":
@@ -420,6 +430,8 @@ class Adapter(Protocol):
         self.inquired = state["inquired"]
         self.mode = state["mode"]
         self.level = state["level"]
+        if state["inquired"] == 0x02 and state["level"] > 0:
+            self.ambient_level = state["level"]
         self.voice = state["voice"]
         if state["ncValue"] is not None:
             # Whatever the headset reports here is what a SET must echo back;
@@ -459,9 +471,14 @@ class Adapter(Protocol):
             # carries the three-way choice here rather than a separate ambient
             # flag, and asmType (0x01) is the only value the WH-1000XM4 was
             # seen to take.
-            nc_value = 0 if not on else (1 if mode == "ambient" else 2)
-            return bytes([NCASM_SET, 0x02, on, self.nc_value, nc_value,
-                          0x01, voice, level])
+            # Frame sony-device-center sends and a WH-1000XM4 obeys: effect
+            # 0x11 (adjustment completion), level-adjustment type, dual/single
+            # 2 for noise cancelling and 0 for ambient, level only in ambient.
+            if mode == "ambient":
+                return bytes([NCASM_SET, 0x02, 0x11, 0x01, 0x00, 0x01, voice,
+                              max(1, level)])
+            return bytes([NCASM_SET, 0x02, 0x11 if on else 0x00, 0x01,
+                          0x02 if on else 0x00, 0x01, voice, 0x00])
         if self.inquired == 0x15:
             return bytes([NCASM_SET, 0x15, 0x01, on, ambient,
                           self.nc_value, voice, level])
