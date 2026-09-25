@@ -155,6 +155,32 @@
           28
         ]
       }
+    },
+    "cmf buds 2": {
+      "match": {
+        "name": "cmf buds 2"
+      },
+      "parameters": {
+        "defaultAncLevel": "adaptive"
+      },
+      "transport": {
+        "channels": [
+          16
+        ]
+      }
+    },
+    "buds 2": {
+      "match": {
+        "name": "buds 2"
+      },
+      "parameters": {
+        "defaultAncLevel": "adaptive"
+      },
+      "transport": {
+        "channels": [
+          16
+        ]
+      }
     }
   },
   "namelessTransport": {
