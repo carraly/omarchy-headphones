@@ -22,6 +22,18 @@ PRs: `https://github.com/ncr/omarchy-headphones/pull/<number>`.
 | Canonical tests / 1.3.0 | Owner tests are substantively immutable. Expanded real-capture, UUID, fault and live coverage applies to new models; existing models were grandfathered. Harness semantics still need review. Mode persistence across refresh does not establish fresh battery telemetry. Preserve settings and bar placement. |
 | #12 CMF / 1.3.1 | Local checks passed while shared channel fallback changed legacy Nothing retries. Per-model repairs and full captured-frame tests preserved original pins. CI-only socket constants were fixed in test doubles. The author tested repaired head 22497ef before landing, confirming controls/reconnect/restoration but not peer isolation, charging or acoustic effects. A cropped owner image was retained with an honest description. |
 
+## Added 2026-09-21
+
+From the session that handled #16, #18, #19 and #21 together. Same caveat:
+decisions then, not live status.
+
+| Review | Lesson retained |
+| --- | --- |
+| #18 Soundcore Life Q30 / 1.3.6 | GitHub does not run the `check` workflow on a head that conflicts with main, so a green `pin owners` alone said nothing; the merged tree was checked locally. The pin's frames came from an earlier session than the capture file and differed in two bytes (battery, noise-cancelling grade); that was accepted and written into the merge message rather than reconstructed. The owner's hardware test stood because the later commit only removed an explicit default. Review added a test the contribution lacked: commands for controls the model does not have must write nothing. |
+| #19 JBL channel reopen / 1.3.7, 1.3.9 | A change for every JBL model, inside a follow-up about one. The author's post-change evidence did not show the fix working: five reconnects kept one address, and eight reopens re-announced a dead one. The maintainer tested on the TUNE230NC instead: killing the bridge's `btgatt-client` forces exit 1, and the reader's socket inodes in `/proc/<pid>/fd` show whether the channel was reopened. Ten trials, with music and PipeWire's error count, went into `docs/captures/`. An unexplained shell restart during one trial was recorded, not dropped. The side effect found in review (exit 1 cancelling the reader's backoff) was fixed separately, measured the same way, and released on its own. |
+| #21 Sony WH-1000XM4 ambient | A second owner of the same model edited the first owner's pin, whose own notes say it was not recorded on hardware. The pin check stays red by design; the first owner was asked to test, and whether a second owner's confirmation is enough is the maintainer's decision, not the reviewer's. `action_required` on `check` needs the maintainer's click and is not a result. A usability repair (ambient level after ANC) used only frames already in the owner's capture and went to the contributor's branch as one `Review:` commit for the owner to test; it was not run on hardware by the reviewer. |
+| #16 Soundcore R60i NC | A claim in the description (ambient level 1-5 works) had no frame behind it: the capture's level byte was 0 throughout. Asking for one named byte got further than asking for "more captures". The probe the owner was about to rerun wrote fixed bytes after the mode; it was fixed first (1.3.8) so that gathering evidence could not overwrite the owner's settings. |
+
 ## Source index
 
 Conversation IDs locate original Claude project records or Codex archived
@@ -42,6 +54,7 @@ older summary that still called it pending.
 | #11 | `01a07ff7-9890-7771-a751-8d17bdc68c00` | `4416725`, `7873436` |
 | Canonical tests | `01a08019-5657-7e03-a1c4-4e26114b9cb9` | `033c2ca`, `63a7704` |
 | #12 | `01a086e2-51d4-7062-963b-b045ee5d0298` | `acadbc9`, `22497ef`, `6bf8460`, `417985c` |
+| #16, #18, #19, #21 | `72dffa6e-572a-4798-b972-bb7ef5ed0825` | `70f3094`, `06bd3fb`, `2b4ac59`, `ad321c4` |
 
 ## Deliberate updates to the old skill
 

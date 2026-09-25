@@ -917,6 +917,29 @@ const DEVICES = [
     bleAddress: "48:B4:41:00:00:01",
   },
   {
+    model: "Bose QC35",
+    backend: "bose",
+    // The real list from docs/captures/bose-qc35.txt. Only the deca-fade
+    // placeholder claims it; unlike the QC45 it serves no 9b26d8c0 SPP UUID.
+    uuids: [
+      "00000000-deca-fade-deca-deafdecacaff",
+      "00001101-0000-1000-8000-00805f9b34fb",
+      "00001108-0000-1000-8000-00805f9b34fb",
+      "0000110a-0000-1000-8000-00805f9b34fb",
+      "0000110b-0000-1000-8000-00805f9b34fb",
+      "0000110c-0000-1000-8000-00805f9b34fb",
+      "0000110d-0000-1000-8000-00805f9b34fb",
+      "0000110e-0000-1000-8000-00805f9b34fb",
+      "0000110f-0000-1000-8000-00805f9b34fb",
+      "0000111e-0000-1000-8000-00805f9b34fb",
+      "0000112e-0000-1000-8000-00805f9b34fb",
+      "00001130-0000-1000-8000-00805f9b34fb",
+      "00001131-0000-1000-8000-00805f9b34fb",
+      "00001200-0000-1000-8000-00805f9b34fb",
+    ],
+    bleAddress: "48:B4:41:00:00:01",
+  },
+  {
     model: "Sony WH-1000XM4",
     backend: "sony",
     uuids: [
@@ -1018,6 +1041,21 @@ Deno.test("controlBackend picks oppo from the HeyMelody UUID", () => {
 
 // Canonical owner records: complete bluetoothctl output, not a guessed UUID list.
 const canonical = JSON.parse(await Deno.readTextFile(new URL('fixtures/canonical.json', import.meta.url)));
+// The Life Q30's own record, as bluetoothctl printed it: the complete list,
+// not a hand-picked pair. Its vendor UUID carries the brand prefix with the
+// model's own tail, and nothing else in the record may take the device first.
+Deno.test('captured Life Q30 record selects the soundcore bridge', async () => {
+  const record = await Deno.readTextFile(
+    new URL('../docs/captures/soundcore-life-q30-bluetoothctl.txt', import.meta.url));
+  const ids = Model.uuidsFromBluetoothctl(record);
+  assertEquals(ids.length, 8, 'complete captured UUID list');
+  assertEquals(Model.controlBackend(ids, ''), 'soundcore');
+  assertEquals(Model.controlBackend([...ids].reverse(), ''), 'soundcore');
+  assertEquals(Model.controlBackend(ids.map(id => id.toUpperCase()), ''), 'soundcore');
+  assertEquals(Model.bridgeArgs('soundcore', { address: '88:0E:85:5F:64:B4' }),
+               ['88:0E:85:5F:64:B4']);
+});
+
 Deno.test('canonical Sony and JBL SDP records select their own bridge', async () => {
   for (const [brand, fixture] of Object.entries(canonical)) {
     const record = await Deno.readTextFile(new URL('../' + fixture.uuid_capture, import.meta.url));
@@ -1134,6 +1172,21 @@ Deno.test("ambient toggle and slider availability are independent", () => {
   const caps = {"ambient.level": {min: 0, max: 10, step: 2}};
   assertEquals(Model.ambientControlState("unused", snapshot({"ambient.level": 2}, caps), true), {level: true, toggle: "", visible: true});
   assertEquals(Model.ambientControlState("unused", snapshot({}, caps), true).visible, false);
+});
+
+Deno.test("CMF Buds 2 complete owner SDP selects Nothing and passes reported name", async () => {
+  const record = await Deno.readTextFile(new URL(
+    "../docs/captures/nothing-cmf-buds-2-bluetoothctl.txt", import.meta.url));
+  const ids = Model.uuidsFromBluetoothctl(record);
+  assertEquals(ids.length, 18);
+  for (const uuids of [ids, [...ids].reverse(), ids.map(id => id.toUpperCase())]) {
+    for (const ble of ["", "48:B4:41:00:00:01"]) {
+      assertEquals(Model.controlBackend(uuids, ble), "nothing");
+    }
+  }
+  assertEquals(Model.bridgeArgs("nothing", {
+    address: "3C:B0:ED:D0:AC:0B", name: "CMF Buds 2",
+  }), ["3C:B0:ED:D0:AC:0B", "CMF Buds 2"]);
 });
 
 Deno.test("WH-CH520 owner SDP retains Sony routing for battery-only handling", async () => {

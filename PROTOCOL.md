@@ -1,8 +1,10 @@
 # What these headphones say, and how
 
 Notes from probing a **JBL TUNE230NC TWS** (`A0:11:22:33:44:55`, modalias
-`bluetooth:v02B0p0000d001F`, Fast Pair model id `71f20a`) on Arch/BlueZ 5.87.
-Its *audio* side is BR/EDR only — every profile `bluetoothctl info` lists is
+`bluetooth:v02B0p0000d001F`, Fast Pair model id `71f20a`) and a **JBL Wave
+Buds 2** (`50:1B:6A:0B:0B:6E`, modalias `bluetooth:v0ECBp2100d001F`, Fast Pair
+model id `ea59a0`) on Arch/BlueZ 5.87.
+Their *audio* side is BR/EDR only — every profile `bluetoothctl info` lists is
 RFCOMM or A2DP, and there is no GATT to read on it. The control protocol is on a
 separate LE connection: [further down](#the-control-protocol-lives-on-ble-and-it-is-fully-working).
 
@@ -315,7 +317,9 @@ instead.
 
 [`jbl-bridge`](jbl-bridge) is the same protocol as a long-lived process: it owns
 one BLE link, prints a JSON line whenever the mode changes, and takes `set <mode>`
-on stdin. The plugin's service spawns it while the earbuds are connected and
+on stdin. Which notify/write handles to dial is chosen by the Fast Pair model id
+the service passes as its last argument — TUNE230NC `0x000c`/`0x0010`, Wave Buds
+2 `0xa205`/`0xa202`, anything else the TUNE230NC ones. The plugin's service spawns it while the earbuds are connected and
 writes commands into it — the service, not the panel, so a second monitor's
 widget does not mean a second link. That one conversation is why clicking a mode
 and hearing about a touch-control change come back the same way; a second
@@ -342,8 +346,10 @@ What the bridge's exit code means, because the answer to "does this model speak
 the protocol" is only some of the ways it can end:
 
 - **1, transient** — the link never opened, was refused, or closed under the
-  bridge. That says nothing about the device, so nothing is written down and the
-  service tries again after 10 seconds, then 20, then 40, up to five minutes.
+  bridge. That says nothing about the device, so nothing is written down; the
+  service asks the reader, if it is running, to reopen the device's Fast Pair
+  channel, which makes the earbuds announce the BLE address they currently
+  hold, then tries again after 10 seconds, then 20, then 40, up to five minutes.
 - **3, linked but silent** — connected, discovered, asked, heard nothing. The
   bridge records one miss against the Fast Pair model id in
   `$XDG_STATE_HOME/omaphones/mode-support.json` and the service leaves that model
@@ -396,6 +402,61 @@ sweep on the only earbuds you own is how you find them. The RFCOMM command
 numbers above are frames the official Android app is known to send, by way of
 bluetooth-py; the BLE payloads were worked out here, from what the earbuds
 reported back to the frames those numbers suggested.
+
+### The Wave Buds 2 — the same frames, higher handles
+
+A second JBL model captured on the same protocol: **JBL Wave Buds 2**, Fast
+Pair model id `ea59a0`, classic `50:1B:6A:0B:0B:6E`. `bluetoothctl info` on it
+lists the Fast Pair UUID plus the usual HFP/A2DP set; its control traffic sits
+on the same excelpoint service, but the value handles are not the TUNE230NC's.
+The TUNE230NC enumerated the service at the bottom of the tree (`0x000c` /
+`0x0010`); here the whole excelpoint service lives at `0xa200` and neither
+handle survived the move:
+
+| handle | UUID | props | role |
+|---|---|---|---|
+| `0xa205` | `…2e636f6d0001` | `0x10` notify | the device talks here |
+| `0xa202` | `…2e636f6d0002` | `0x0c` write + write-without-response | commands go here |
+
+Everything observed on it matches the TUNE230NC section frame for frame: the
+`aa 9b 02 01 01` notify-on, the `aa 91 01 11` mode query answered by an
+`aa 91 07 12 …` report, and every mode payload from the table above reporting
+back on the set. One session recorded the full cycle — initial state **ANC**,
+then Off, ANC, Ambient Aware and TalkThru, each with its report (the device
+sends each report twice), then back to ANC — verbatim in
+[`docs/captures/jbl-wave-buds-2.txt`](docs/captures/jbl-wave-buds-2.txt), with
+the `bluetoothctl info` listing in
+[`docs/captures/jbl-wave-buds-2-bluetoothctl.txt`](docs/captures/jbl-wave-buds-2-bluetoothctl.txt).
+
+Because the handles differ and the model id is the only thing a connect hands
+over for free, `jbl-bridge` carries a per-model table: `MODELS` is keyed by
+Fast Pair model id, picks the notify/write handles, and a model not listed
+keeps the TUNE230NC handles on which the protocol was first confirmed.
+
+Its Fast Pair Message Stream announces the same three DEVICE_INFO frames as
+every other pair here, unprompted on every channel open: model id `ea59a0`,
+then the session's current BLE address, then battery `03 03 00 03 32 3c 64` —
+left 50%, right 60%, case 100%, none charging — verbatim in
+[`docs/captures/jbl-wave-buds-2-fastpair.txt`](docs/captures/jbl-wave-buds-2-fastpair.txt).
+The `08 11 00 00` Hearable Control probe got no reply, as documented. The BLE
+address frame is the one the widget's reader republishes and the excelpoint
+bridge dials; across today's sessions it read `64:F7:09:7F:E2:9D`,
+`72:36:C8:11:D2:7F`, `67:6D:C6:10:DE:5F`, `4A:02:E4:49:B0:65` and
+`48:DD:7D:82:61:F8` at different times.
+
+Reconnect recovery is evidence now too: five Bluetooth disconnect/connect
+cycles in a row each re-announced the earbuds' current BLE address and the
+mode row came back on its own (all `anc`, no manual refresh), see
+[`docs/captures/jbl-wave-buds-2-reconnect-recovery.json`](docs/captures/jbl-wave-buds-2-reconnect-recovery.json).
+A rotation mid-session still leaves the announced address stale for the next
+attempt, which is what exit 1 above covers: the service reopens the channel
+and the earbuds announce the address they actually hold.
+
+The reopen was also run on the TUNE230NC, ten forced exit 1 with and without
+it: one reopen per exit, the mode back as fast as before, battery rows kept,
+no audio dropout, see
+[`docs/captures/jbl-tune230nc-tws-exit1-channel-cycle.txt`](docs/captures/jbl-tune230nc-tws-exit1-channel-cycle.txt).
+An address rotating in the middle of a session was not caught there.
 
 ## Sony MDR v2 — the listening mode on the WH-CH720N
 
@@ -707,9 +768,9 @@ idx: 0    1     2             3       4        5       6       7
 
 | field | values |
 |---|---|
-| `ncAsmEffect` | `0x00` off, `0x01` on |
+| `ncAsmEffect` | `0x00` off, `0x01` on; a SET sends `0x11` (adjustment completion) for on |
 | `ncType` | `0x02` (`DUAL_SINGLE_OFF`) — the v1 enum; the headset always reports this |
-| `ncValue` | `0x00` off, `0x01` SINGLE (ambient), `0x02` DUAL (noise cancelling) |
+| `ncValue` | `0x00` off — with the effect on, this is ambient sound; `0x01` SINGLE (wind noise reduction); `0x02` DUAL (noise cancelling) |
 | `asmType` | `0x01` — the only value seen; the bridge writes back what it read |
 | `asmId` | `0x00` normal, `0x01` voice |
 | `asmValue` | ambient level, `0x00`-`0x14` (0-20) |
@@ -721,21 +782,30 @@ What the headset actually said:
 <-  67 02 01 02 02 01 00 00     RET: on, DUAL_SINGLE_OFF, nc=NC, asm normal, level 0
 ```
 
-The SET (`0x68`) is that block written back, with `ncAsmEffect` and `ncValue`
-carrying the mode and everything else echoed as the headset reported it:
+The SET (`0x68`) uses effect `0x11` for on, setting type `0x01`, and `ncValue`
+`0x02` for noise cancelling or `0x00` for ambient, with the level in the last
+byte only in ambient:
 
 ```
-->  68 02 00 02 00 01 00 00     SET off
-->  68 02 01 02 02 01 00 00     SET ANC
-->  68 02 01 02 01 01 00 00     SET ambient
+->  68 02 00 01 00 01 00 00     SET off
+->  68 02 11 01 02 01 00 00     SET ANC
+->  68 02 11 01 00 01 00 14     SET ambient, level 20
+<-  69 02 01 02 00 01 00 14     NTFY: on, ncValue 0, level 20
 ```
 
-Off / ANC / Ambient each set and were confirmed on the headset; the NTFY
-(`0x69`) follows a SET with the new state. The ambient level and Focus on Voice
-are in the payload and the headset ACKs them in the SET, but the reply carries
-the pre-existing stored values — the headset stores them but does not apply them
-from the bridge's writes, the same way the v2 protocol stores the level and only
-applies it on an ambient SET.
+Off / ANC / Ambient and the ambient level were each confirmed by ear on a
+second WH-1000XM4 (firmware 3.0.1, [capture](docs/captures/sony-wh-1000xm4-ambient.txt)).
+The NTFY (`0x69`) follows a SET with the new state, and with effect `0x11` it
+carries the level that was sent. An earlier version sent ambient as
+`68 02 01 02 01 01 00 00`: the headset accepts and echoes it, but `ncValue`
+`0x01` is wind noise reduction, so no outside sound comes through.
+
+In noise cancelling the headset reports level `0x00` (`69 02 01 02 02 01 00 00`
+after an ambient at 20), while effect off keeps the level (`69 02 00 02 00 01
+00 14`). So the bridge remembers the last level above zero this headset
+reported, and a `set ambient` that finds the reported level at zero sends that
+one; with nothing remembered it sends 1, the bottom of the dial. v1 only: a v2
+headset keeps its level across modes and is sent what it was.
 
 Sony's v1 table also numbers an NC-only `0x01` and an ambient-only `0x03`. Both
 were asked on this headset and neither was answered, so neither is in the
@@ -990,14 +1060,15 @@ screenshot). Where the three differ, both readings are handled below.
 ```
 aeac4a03-dff5-498f-843a-34487cf133eb   NT Link   <- Ear (a) on channel 15; the Ear (2), Ear,
                                                     Ear (stick) and Headphone (1) speak the same
-                                                    protocol, and the CMF Headphone Pro on 28
+                                                    protocol, CMF Headphone Pro on 28, and
+                                                    CMF Buds 2 on 16
 ```
 
 **Opening it.** The bridge opens an `AF_BLUETOOTH` / `BTPROTO_RFCOMM`
 socket directly. Its optional second argument is the name reported by the
 headset, already available to the follower. `MODELS` selects the channel
 before any connect: known legacy Nothing models retain 15 on every retry;
-CMF Headphone Pro uses 28. An unknown name gets `(15, 28)` discovery, while
+CMF Headphone Pro uses 28, and CMF Buds 2 uses 16. An unknown name gets `(15, 28)` discovery, while
 an absent name retains the old channel-15-only call. Matching ignores case,
 outer whitespace and the optional Nothing brand prefix; it does not use a
 user's renamed Alias when the reported name is available.
@@ -1157,6 +1228,18 @@ It is the same protocol as the earbuds, frame for frame; what is model-specific:
   forms parse.
 - The `29` codec flag answered `00` and is left alone, as on the earbuds.
 
+### CMF Buds 2 — RFCOMM channel 16
+
+Read off hardware (`3C:B0:ED:D0:AC:0B`).
+Channels 15 and 28 are refused; channel 16 connects and speaks the Nothing NT Link protocol.
+- **Channel 16**. The SDP record advertises the shared NT Link UUID (`aeac4a03-dff5-498f-843a-34487cf133eb`). The reported name `CMF Buds 2` selects channel 16.
+- **Device info** (`40 06`): ASCII lines returning firmware version (`1.0.1.52`), unlocking queries.
+- **Battery** (`40 07` / `E0 01`): query `40 07` answers left and right components (`02 02 64 03 64`). While the case is opened, unsolicited `E0 01` announcements arrive including component `04` (case battery, e.g. `03 02 64 03 64 04 55` -> case 85%). When the case is closed, subsequent queries omit component `04`, and `nothing-bridge` retains the cached case level with `caseStale: true`.
+- **Noise control** (`40 1E` / `E0 03`): six-byte triplet form `01 <mode> 00 02 <level> 00`. Confirmed for all options: Off (`05`), Ambient/Transparency (`07`), and ANC (`01`–`04`) with levels Low (`03`), Mid (`02`), High (`01`), and Adaptive (`04`). Setting each mode produces an ACK (`70 0F`), an unsolicited `E0 03` state event, and is verified on read-back.
+- **Low latency** (`C0 41` / `40 41`): `01` on, `02` off. Setting `F0 40` payload `01` on / `02` off produces an ACK (`70 40`), an unsolicited `40 41` answer (header `55 20`, sequence `00`), and is verified on read-back.
+- **Reconnect & mode-control**: turning `useModeControl` off terminates `nothing-bridge` and frees RFCOMM channel 16; turning it on reconnects within ~2 seconds and restores state. Bridge process termination triggers clean recovery and reconnect in `DeviceFollower.qml`.
+- **Unavailable & untested**: continuous ambient dial (`ambientLevel` unsupported, discrete mode only), in-ear wear detection (`worn` unsupported on this channel), charging state bits (buds were 100%), multipoint dual-connection isolation, and acoustic tuning remain unobserved/untested on hardware.
+
 ### The probe
 
 [`tools/nothing_probe.py`](tools/nothing_probe.py) — opens the socket, sends
@@ -1169,10 +1252,11 @@ tools/nothing_probe.py 3C:B0:ED:AF:7C:30 set-anc high
 tools/nothing_probe.py 3C:B0:ED:AF:7C:30 set-latency on
 ```
 
-The probe defaults to channel 15 to preserve existing calls. Select 28
-explicitly for CMF (the bridge itself selects by reported model name):
+The probe defaults to channel 15 to preserve existing calls. Select 16 or 28
+explicitly for CMF models (the bridge itself selects by reported model name):
 
 ```bash
+tools/nothing_probe.py --channel 16 3C:B0:ED:D0:AC:0B
 tools/nothing_probe.py --channel 28 2C:BE:EE:3C:6F:FE
 ```
 
@@ -1226,6 +1310,14 @@ A mode change is confirmed on the headphones immediately and answered with both 
 tools/soundcore_probe.py 84:9D:4B:B0:2D:00
 tools/soundcore_probe.py 84:9D:4B:B0:2D:00 5 set:ambient
 ```
+
+It asks for the state (`01 01`) and the sound modes (`06 01`) and prints both.
+A `set:` writes the device's own sound-mode bytes back with only the mode
+replaced — the `06 01` reply, as wide as it came up to six bytes — then asks
+both questions again. A device that did not answer `06 01` is not written to,
+except the Space 2, whose block is known to sit at offset 71 of its state.
+Until 1.3.8 the probe sent a fixed `1f ff 00 00 01` after the mode, which is
+what overwrote two fields on the Life Q30 below.
 
 
 
@@ -1362,6 +1454,82 @@ case it is ever the only way in, though on a healthy device the vendor channel
 is simpler and this plugin needs nothing from it. Two notes for anyone who
 tries: the address rotates and arrives unprompted as `0b 02` on the same notify
 handle, and BlueZ drops the LE link the moment no client holds it.
+
+### Life Q30 (A3028) — the same protocol, four bytes at 35
+
+Notes from a **soundcore Q30** (`88:0E:85:5F:64:B4`, firmware `05.24`, serial
+starting `3028`). Same vendor channel as the Space 2, same framing, same
+commands, same mode bytes. Two things differ, and between them the row never
+said anything at all.
+
+#### A shorter state, and the block near its front
+
+`0cf12d31-fac3-4553-bd80-d6832e7b302a`, model ID `b302a`, and `01 01` answers
+with a **70-byte** state — a third of the Space 2's. The sound mode bytes are at
+**offset 35**:
+
+```
+0200 fefe9d93949faa8d8f78 0000...0000 01 00 01 00 00 30352e32343330 3238...
+                                         ^^^^^^^^^^^ the block, at 35
+                                      ^^ ambient sound mode cycle
+                                                     ^^^^^^^^^^^^^ "05.24" — firmware,
+                                                                   as ASCII, from 39
+```
+
+Read at 71 there is no byte at all: the payload ends at 69. `on_packet` needs
+`len(body) >= offset + 4` before it reads anything, so the state was discarded,
+`06 01` was never asked for on the UNKNOWN row's terms, and the bridge sat
+connected and silent until the service parked the address. From outside, the
+headphones showed a battery and no controls.
+
+#### The block is four bytes wide, and what follows is not mode data
+
+This is the part that matters beyond this one headset. The Space 2's block is
+six bytes and the bridge reads six. Here the fourth byte is the last:
+
+```
+>>> 08 ee 00 00 00 06 01 0a 00 07              request
+<<< 09 ff 00 00 01 06 01 0e 00 00 01 00 00 ..  four bytes, not six
+```
+
+Byte 39 is `0x30`, the `0` of `05.24`. A six-byte read takes `30 35` along with
+the block, and `set` posts them straight back as mode parameters — the same
+failure the Space One Pro section describes, one field further along. Observed
+here, with the bridge's default parameters rather than a mis-offset read:
+
+```
+before  ... 01 00 01 00 00 30 35 ...     byte 36 = 01, byte 37 = 00
+write   08 ee 00 00 00 06 81 10 00 01 1f ff 00 00 01 ad
+after   ... 01 01 1f ff 00 30 35 ...     byte 36 = 1f, byte 37 = ff
+```
+
+`1f ff` are the bridge's defaults for a model that keeps a custom transparency
+level there. This one does not: the write left two fields holding values nobody
+chose, and restoring them took a second write with the bytes read before the
+first. A four-byte write, carrying the device's own parameters with only the
+mode replaced, is accepted and changes nothing else:
+
+```
+>>> 08 ee 00 00 00 06 81 0e 00 01 01 00 00 8d
+<<< ACK, and the state reads back 01 01 00 00 — mode changed, neighbours intact
+```
+
+So the model row carries a width, and the rows that came before say six.
+
+#### No dial, no switch
+
+The Q30 has no ambient level and no wind noise reduction, and the four bytes
+hold neither. The row reports `mode` alone; `DeviceFollower` reads a missing
+`level` as -1 and draws no dial, which is what it already does for the JBL.
+
+#### What was verified on the hardware
+
+Off, ANC and Ambient were each set from the shell and read back from the device,
+and the mode the headphones reported afterwards matched every time. Battery
+continues to come from Fast Pair. Untested: charging state, the noise-cancelling
+sub-mode at byte 36 (transport / outdoor / indoor / custom in OpenSCQ30's A3028
+parser, and writable — that is how `1f` landed there), and the equalizer, which
+lives on a command this bridge does not send.
 
 ## Samsung Galaxy Buds2 — SPPNew
 
@@ -1645,6 +1813,142 @@ Profile1 route, not the recommended QC45 capture tool.
 
 See [the review and owner confirmation](docs/BOSE-REVIEW.md) for the owner's
 test results on `fc8d7f9`, software coverage and remaining evidence limits.
+
+## Bose QC35 — the [1.6] noise-cancelling path
+
+Confirmed on a **Bose QC35** (`04:52:C7:C2:A9:3E`, firmware `1.0.4`, 70% at
+capture time) on 2026-09-23. Same brand, same channel, same framing as the
+QC45 above — and a different question, because this generation does not
+serve the QC45's audio modes at all.
+
+Its SDP record carries the Bose BMAP placeholder
+`00000000-deca-fade-deca-deafdecacaff` beside SPP and the audio profiles, so
+`Model.js` already routes it to `bose-bridge` with no new claim. The full
+listing is in the capture; the QC45 has no equivalent stored.
+
+### Which question a headset gets, and why the headset decides
+
+```
+->  1f 03 01 00                [31.3] GET   the QC45's audio modes
+<-  1f 03 04 01 03             [31.3] ERROR this headset does not serve them
+->  01 06 01 00                [1.6]  GET   asked only after that ERROR
+<-  01 06 03 02 01 0b          [1.6]  STATUS
+```
+
+There is no model table here and no new bridge argument. Keying on the
+reported name was the obvious design and it does not hold: a Bose name is
+whatever its owner typed into the app — this unit's is the owner's own first
+name — and the QC45's capture carries no SDP listing to write its row from,
+so that row would have to be invented.
+
+So every Bose is asked `[31.3]` first, exactly as before this model was
+added, and only one that answers with an **ERROR**, before it has ever
+answered `[31.3]` with a STATUS, is asked `[1.6]` and polled on it from then
+on. An ERROR after a STATUS — a refused START, say — leaves the headset on
+`[31.3]`: no QC45 capture shows such an ERROR, so it must not move a QC45. A QC45 answers `[31.3]` with a STATUS and never
+reaches the fallback: its wire is unchanged frame for frame, which is what
+`tests/pins/bose/qc45.json` passing untouched demonstrates.
+
+### The noise-cancelling setting
+
+```
+->  01 06 01 00                [1.6] GET
+<-  01 06 03 02 01 0b          [1.6] STATUS: value 1, mask 0b1011
+->  01 06 02 01 03             [1.6] SETGET value 3
+<-  01 06 03 02 03 0b          [1.6] STATUS: value 3 — the set is answered
+                                     with the result, not with an ack
+->  01 06 02 01 02             [1.6] SETGET value 2
+<-  01 06 04 01 06             [1.6] ERROR: refused, and nothing moved
+```
+
+The payload is two bytes: what the headset is set to, then a bitmask whose
+set bits are the values it takes. This unit answered `0x0b` — bits 0, 1 and
+3 — and refused 2, the one value under 4 whose bit the mask leaves clear.
+Four values driven, four agreements with the mask. A `[1.6]` STATUS with
+only the value byte was never seen from this headset; the bridge falls back
+to the strengths it can name rather than guessing a support set.
+
+**0 is off, 1 the weaker strength and 3 the stronger.** The wire does not
+say which of 1 and 3 cancels more, and the published third-party tables for
+this protocol say the reverse of what this headset does, so the naming is
+not taken from them: the owner ranked the three values by ear with the
+values unnamed during the test, twelve seconds each, two rounds, and
+reported 3 the quietest and 0 the loudest. A copied table would have put the
+panel's High button on the weaker setting.
+
+Because the two strengths are one mode graded twice rather than two modes,
+the line carries the panel's strength row — `ancLevel` and `ancLevels`, the
+keys `nothing-bridge` fills — and `set anc` asks for the strength last seen,
+as it does on every other brand. This headset has no ambient and no
+TalkThru; neither is offered or sent, and neither is an ambient dial, a
+voice switch nor a low-latency switch.
+
+### Battery
+
+```
+->  02 02 01 00                [2.2] GET
+<-  02 02 03 01 46             [2.2] STATUS: 70%
+```
+
+One byte on this generation, where the QC45 answers four. The existing
+parser reads the first byte and needs no change. 70% is what BlueZ's own
+`Battery Percentage` reported at the same moment. Charging is not
+established by this capture.
+
+### In the widget
+
+```json
+{"modes": true, "mode": "anc", "available": ["off","anc"],
+ "ancLevel": "low", "ancLevels": ["low","high"],
+ "battery": {"headset": 70, "charging": []}}
+```
+
+Commands on stdin: `set off`, `set anc`, `level low|high`. Exit codes are the
+shared ones. `tests/pins/bose/qc35.json` freezes the session and
+`tests/bose_qc35_test.py` covers what a pin cannot say: that the fallback is
+reached only on the headset's own ERROR, that a QC45 never reaches it, the
+mask, the naming, split and coalesced reads, the unsolicited `[5.1]` and
+`[4.2]` frames this headset emits after the init and the bridge steps over,
+and timeout, readback and link loss driven through the clock and the loop.
+
+### The capture and its limits
+
+[`docs/captures/bose-qc35.txt`](docs/captures/bose-qc35.txt) has the SDP
+record, the read-only discovery, the driven session with the refusal and the
+verified restoration, the ranking run behind the naming, and `bose-bridge`
+itself against the headset. Raw reads are logged at receipt before framing;
+each step waits a fixed collection window, so no timestamp there measures
+response latency.
+
+### Tested on the headset
+
+By [@pedrohfp](https://github.com/pedrohfp) on `3aa8974`, with the plugin
+installed from that revision and nothing else holding channel 8:
+
+| Run | Result |
+|:--|:--|
+| Read-only discovery | init `1.0.4`, battery `02 02 03 01 46` (70%, matching BlueZ), `[31.3]` ERROR, `[1.6]` `01 0b` |
+| Driven session | values 0, 1 and 3 accepted and read back; 2 refused with `01 06 04 01 06` and the setting did not move; initial value restored and the restoration verified |
+| Bridge over its own pipe | first reading, `set off`, `set anc`, `level low`, `level high`, seven unsupported commands that sent nothing, restoration, exit 0 |
+| Reconnect | `bluetoothctl disconnect` showed `not connected`; after reconnect mode, strength and battery all returned, and a strength set before the cycle survived it |
+| Panel | Off, ANC, Low and High all responded; the owner reports the three states audibly distinct, High the stronger cancelling |
+
+### Not established
+
+- **Unsolicited changes.** Three windows totalling 110 seconds recorded no
+  `[1.6]` frame the bridge had not asked for, but the owner did not operate
+  the headset's own controls during any of them, so whether it announces a
+  change made on the headset is unknown. A panel change travels through the
+  bridge and does not count. The bridge polls every four seconds either way.
+- **Channels 2 and 9** were never tried on this headset, because 8 answered
+  the probe first — untried, not refused.
+- **Charging.** The battery read 70% throughout; `charging` is always empty.
+- **The support mask** is an inference from four observations matching
+  `0x0b`. No other mask has been seen from any Bose.
+- **Peer isolation** is simulated in `tests/bose_qc35_test.py`; no second
+  headset was connected alongside.
+- **The `[5.1]` and `[4.2]` frames** sent after the init are recorded in the
+  capture and stepped over by the framer; their meaning is not known.
 
 ## Canonical owner captures — 2026-09-08
 

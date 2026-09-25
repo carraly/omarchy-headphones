@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Probe the Nothing NT Link channel: ask for everything, print every frame.
 
-Usage: nothing_probe.py [--channel 15|28] <address> [set-anc <off|low|mid|high|adaptive|transparency>
+Usage: nothing_probe.py [--channel 15|16|28] <address> [set-anc <off|low|mid|high|adaptive|transparency>
                                    | set-latency <on|off>]
 
-Opens an RFCOMM socket to the selected channel (default 15; CMF uses 28), sends the device-info, battery,
+Opens an RFCOMM socket to the selected channel (default 15; CMF uses 16 or 28), sends the device-info, battery,
 noise-control and low-latency gets, and prints each frame in both directions —
 raw and decoded — for a few seconds. With a `set-…` argument it writes that
 setting afterwards and asks for the state again, so the ack and the read-back
@@ -137,7 +137,7 @@ def main():
         print(__doc__.strip())
         return 2
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--channel", type=int, choices=(15, 28), default=15)
+    parser.add_argument("--channel", type=int, choices=(15, 16, 28), default=15)
     parser.add_argument("address")
     parser.add_argument("action", nargs="?", default="")
     parser.add_argument("value", nargs="?", default="")

@@ -1,0 +1,96 @@
+Owner: Hanz Geeratz
+Model: CMF Buds 2
+Date: 2026-09-13
+Source: tools/nothing_probe.py-style probe on RFCOMM channel 16 (one
+  continuous NT Link session: initial read, every mode / ANC level /
+  low-latency set with a read-back after each, case battery event,
+  and restore in finally).
+Colours removed. Every byte is verbatim. Timestamps are the
+  probe's own elapsed clock, kept for ordering, not a timing model.
+
+  0.36s connected to channel 16
+
+### INITIAL STATE
+  0.36s -> device-info    get    55 60 01 06 c0 00 00 01 91 1f
+  0.40s <- device-info    answer 55 60 01 06 40 47 00 01 04 32 2c 32 2c 31 2e 30 2e 31 2e 35 32 0a 0a 32 2c 34 2c 31 33 35 31 39 38 32 35 31 30 30 32 37 35 38 31 0a 33 2c 32 2c 31 2e 30 2e 31 2e 35 32 0a 0a 33 2c 34 2c 31 33 35 31 39 38 32 35 31 30 30 32 37 35 38 31 0a e0 d0
+  1.86s -> battery        get    55 60 01 07 c0 00 00 01 ac df
+  1.86s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+  1.86s -> latency        get    55 60 01 41 c0 00 00 01 25 10
+  1.86s -> codec-flag     get    55 60 01 29 c0 00 00 01 44 d9
+  1.89s <- battery        answer 55 60 01 07 40 05 00 01 02 02 64 03 64 32 89   left 100%, right 100%
+  1.92s <- anc            answer 55 60 01 1e 40 06 00 01 01 05 00 02 01 00 b6 2a   mode off level=high
+  1.94s <- latency        answer 55 60 01 41 40 01 00 01 02 50 38   low latency off
+  1.96s <- codec-flag     answer 55 60 01 29 40 01 00 01 00 d9 11   codec flag 0
+
+### SET ANC -> off
+  4.86s -> anc-set        set    55 60 01 0f f0 03 00 01 01 05 00 fb 17
+  4.88s <- anc-event      event  55 20 01 03 e0 06 00 00 01 05 00 02 01 00 31 c4   mode off level=high
+  4.90s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+  5.87s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+  5.87s <- anc            answer 55 60 01 1e 40 06 00 01 01 05 00 02 01 00 b6 2a   mode off level=high
+
+### SET ANC -> transparency
+  7.37s -> anc-set        set    55 60 01 0f f0 03 00 01 01 07 00 fa 77
+  7.38s <- anc-event      event  55 20 01 03 e0 06 00 00 01 07 00 02 01 00 48 04   mode transparency level=high
+  7.38s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+  8.37s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+  8.38s <- anc            answer 55 60 01 1e 40 06 00 01 01 07 00 02 01 00 cf ea   mode transparency level=high
+
+### SET ANC -> adaptive
+  9.87s -> anc-set        set    55 60 01 0f f0 03 00 01 01 04 00 fa 87
+  9.88s <- anc-event      event  55 20 01 03 e0 06 00 00 01 04 00 02 04 00 0f 54   mode adaptive level=adaptive
+  9.88s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+ 10.87s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+ 10.88s <- anc            answer 55 60 01 1e 40 06 00 01 01 04 00 02 04 00 88 ba   mode adaptive level=adaptive
+
+### SET ANC -> low
+ 12.37s -> anc-set        set    55 60 01 0f f0 03 00 01 01 03 00 f8 b7
+ 12.38s <- anc-event      event  55 20 01 03 e0 06 00 00 01 03 00 02 03 00 b8 a4   mode low level=low
+ 12.39s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+ 13.38s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+ 13.38s <- anc            answer 55 60 01 1e 40 06 00 01 01 03 00 02 03 00 3f 4a   mode low level=low
+
+### SET ANC -> mid
+ 14.88s -> anc-set        set    55 60 01 0f f0 03 00 01 01 02 00 f9 27
+ 14.89s <- anc-event      event  55 20 01 03 e0 06 00 00 01 02 00 02 02 00 84 f4   mode mid level=mid
+ 14.89s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+ 15.88s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+ 15.89s <- anc            answer 55 60 01 1e 40 06 00 01 01 02 00 02 02 00 03 1a   mode mid level=mid
+
+### SET ANC -> high
+ 17.38s -> anc-set        set    55 60 01 0f f0 03 00 01 01 01 00 f9 d7
+ 17.39s <- anc-event      event  55 20 01 03 e0 06 00 00 01 01 00 02 01 00 c0 04   mode high level=high
+ 17.39s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+ 18.38s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+ 18.39s <- anc            answer 55 60 01 1e 40 06 00 01 01 01 00 02 01 00 47 ea   mode high level=high
+
+### LOW LATENCY ON
+ 19.89s -> latency-set    set    55 60 01 40 f0 01 00 01 01 50 32
+ 19.90s <- latency        answer 55 20 01 41 40 01 00 00 01 15 99   low latency on
+ 19.91s <- latency-set    ack    55 60 01 40 70 01 00 01 01 51 ec
+ 20.89s -> latency        get    55 60 01 41 c0 00 00 01 25 10
+ 20.92s <- latency        answer 55 60 01 41 40 01 00 01 01 10 39   low latency on
+
+### LOW LATENCY OFF
+ 22.39s -> latency-set    set    55 60 01 40 f0 01 00 01 02 10 33
+ 22.42s <- latency        answer 55 20 01 41 40 01 00 00 02 55 98   low latency off
+ 22.42s <- latency-set    ack    55 60 01 40 70 01 00 01 02 11 ed
+ 23.39s -> latency        get    55 60 01 41 c0 00 00 01 25 10
+ 23.42s <- latency        answer 55 60 01 41 40 01 00 01 02 50 38   low latency off
+
+### CASE BATTERY
+ 24.89s -> battery        get    55 60 01 07 c0 00 00 01 ac df
+ 24.92s <- battery        answer 55 60 01 07 40 05 00 01 02 02 64 03 64 32 89   left 100%, right 100%
+ 25.10s <- battery-event  event  55 20 01 01 e0 07 00 00 03 02 64 03 64 04 55 2d 75   left 100%, right 100%, case 85%
+
+### RESTORE INITIAL STATE
+ 26.89s -> anc-set        set    55 60 01 0f f0 03 00 01 01 05 00 fb 17
+ 26.91s <- anc-event      event  55 20 01 03 e0 06 00 00 01 05 00 02 01 00 31 c4   mode off level=high
+ 26.92s <- anc-set        ack    55 60 01 0f 70 01 00 01 00 9e 13
+ 27.90s -> anc            get    55 60 01 1e c0 00 00 01 b1 1d
+ 27.91s <- anc            answer 55 60 01 1e 40 06 00 01 01 05 00 02 01 00 b6 2a   mode off level=high
+ 29.40s -> latency-set    set    55 60 01 40 f0 01 00 01 02 10 33
+ 29.41s <- latency        answer 55 20 01 41 40 01 00 00 02 55 98   low latency off
+ 29.41s <- latency-set    ack    55 60 01 40 70 01 00 01 02 11 ed
+ 30.40s -> latency        get    55 60 01 41 c0 00 00 01 25 10
+ 30.41s <- latency        answer 55 60 01 41 40 01 00 01 02 50 38   low latency off

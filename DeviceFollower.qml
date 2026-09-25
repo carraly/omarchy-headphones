@@ -698,6 +698,15 @@ Item {
         : (follower.service ? follower.service.ancBackoffFor(follower.ancBackoffKey) : 10000)
       if (!deliberate && (exitCode === 1 || exitCode === 4) && follower.service)
         follower.service.bumpAncBackoff(follower.ancBackoffKey)
+      // A transient JBL exit is usually btgatt-client dialling a stale BLE
+      // address: the earbuds rotate it, and only announce the current one when
+      // the Message Stream channel reopens. Backing off against the same dead
+      // address keeps it down for minutes, so ask the reader to cycle this
+      // device's channel; if the address rotated, onBleAddressChanged bounces
+      // the bridge straight to the live one. cycleChannel, not refreshReader:
+      // a reader that is down stays on its own backoff.
+      if (exitCode === 1 && follower.service)
+        follower.service.cycleChannel(follower.address)
       ancRestart.restart()
     }
   }

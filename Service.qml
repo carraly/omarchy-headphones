@@ -242,15 +242,24 @@ Item {
 
   onReaderAddressesChanged: syncReader()
 
+  // Reopen one device's channel, if the reader is up and following it. True
+  // when the request went out. A reader that is between attempts is left to
+  // its pause: this is what a failed JBL bridge calls, and a bridge failing
+  // every few seconds must not be what cancels the reader's backoff.
+  function cycleChannel(address) {
+    if (!useFastPair) return false
+    if (!gfpsReader.running || readerFollowing.indexOf(String(address).toUpperCase()) === -1)
+      return false
+    gfpsReader.write("refresh " + address + "\n")
+    return true
+  }
+
   // Ask one device for a fresh reading. True when the request actually went
   // out, because a follower that is told nothing happened must not blank its
   // rows waiting for an answer that is not coming.
   function refreshReader(address) {
     if (!useFastPair) return false
-    if (gfpsReader.running && readerFollowing.indexOf(String(address).toUpperCase()) !== -1) {
-      gfpsReader.write("refresh " + address + "\n")
-      return true
-    }
+    if (cycleChannel(address)) return true
     // Nothing to re-open — the reader is between attempts, or was never allowed
     // to start. Bring the next attempt forward instead of latching it off.
     readerBackoffMs = 8000

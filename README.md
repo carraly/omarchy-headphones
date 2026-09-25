@@ -93,10 +93,32 @@ Headphones not on the list? [Add yours](#add-your-own-headphones).
 <table>
 <tr>
 <td width="50%"><img src="docs/gallery/sony-wh-ch520.png" alt="Sony WH-CH520: one battery, no noise control (not offered by this model)" width="100%"></td>
-<td width="50%"></td>
+<td width="50%"><img src="docs/gallery/cmf-buds-2.png" alt="CMF Buds 2: left, right and case, Off / ANC / Ambient, ANC levels and low latency" width="100%"></td>
 </tr>
 <tr>
 <td align="center">Sony WH-CH520 — <a href="https://github.com/enobale">@enobale</a></td>
+<td align="center">CMF Buds 2 — <a href="https://github.com/HanzGeeratz">@HanzGeeratz</a></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/gallery/jbl-wave-buds-2.png" alt="JBL Wave Buds 2: left, right and case, Off / ANC / Ambient / TalkThru" width="100%"></td>
+<td width="50%"><img src="docs/gallery/soundcore-q30.png" alt="soundcore Life Q30: one battery, Off / ANC / Ambient" width="100%"></td>
+</tr>
+<tr>
+<td align="center">JBL Wave Buds 2 — <a href="https://github.com/carlosr-sh">@carlosr-sh</a></td>
+<td align="center">soundcore Life Q30 — <a href="https://github.com/kevinbsr">@kevinbsr</a></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/gallery/bose-qc35.png" alt="Bose QC35: one battery, Off / ANC, and the ANC level row Low / High" width="100%"></td>
+<td width="50%"></td>
+</tr>
+<tr>
+<td align="center">Bose QC35 — <a href="https://github.com/pedrohfp">@pedrohfp</a></td>
 <td align="center"></td>
 </tr>
 </table>
@@ -109,10 +131,11 @@ Headphones not on the list? [Add yours](#add-your-own-headphones).
   headphones, filling up as they charge. Readable from the bar without opening
   anything.
 - **Noise control** — Off / ANC / Ambient / TalkThru, from the panel or a key.
-  JBL, Sony, Samsung, Nothing / CMF, Soundcore, Xiaomi Buds 5 Pro, OPPO Enco Air3 Pro and Bose QC45 today; built to learn
+  JBL, Sony, Samsung, Nothing / CMF, Soundcore, Xiaomi Buds 5 Pro, OPPO Enco Air3 Pro,
+  Bose QC45 and Bose QC35 today; built to learn
   your brand. Sony and Soundcore add the ambient level with Focus on Voice or
   wind noise reduction; Nothing / CMF the ANC strength (Low / Mid / High / Adaptive)
-  and a low-latency switch.
+  and a low-latency switch, and the Bose QC35 grades its ANC Low or High.
 - **Pause when you take them off, resume when you put them back on** — on a
   headset with a wear sensor (confirmed on the Sony WH-1000XM6). Only the
   players the sensor paused are resumed. Any headphones pause what is playing
@@ -135,6 +158,7 @@ same idea, built for Apple's own protocol, and the plugin this one is modelled o
 | Device                      | Battery                                                               | Noise control                                                                                   | Confirmed by                   |
 |:----------------------------|:----------------------------------------------------------------------|:------------------------------------------------------------------------------------------------|:-------------------------------|
 | JBL TUNE230NC TWS (earbuds) | <img src="docs/icons/yes.svg" width="14" alt="yes"> left, right, case | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient · TalkThru              | [@ncr](https://github.com/ncr) |
+| JBL Wave Buds 2 (earbuds)   | <img src="docs/icons/yes.svg" width="14" alt="yes"> left, right, case | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient · TalkThru              | [@carlosr-sh](https://github.com/carlosr-sh) |
 | Sony WH-CH720N (over-ear)   | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure        | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient (level, Focus on Voice) | [@ncr](https://github.com/ncr) |
 | Sony WH-1000XM5 (over-ear)  | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure        | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient (level, Focus on Voice) | [@huynguyendinhquang](https://github.com/huynguyendinhquang) |
 | Sony WH-1000XM6 (over-ear)  | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure        | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient (level, Focus on Voice) · wear pause/resume | [@f-iacono](https://github.com/f-iacono) |
@@ -145,10 +169,13 @@ same idea, built for Apple's own protocol, and the plugin this one is modelled o
 | Xiaomi Buds 5 Pro (earbuds) | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure        | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient                          | [@KentoNion](https://github.com/KentoNion)|
 | OPPO Enco Air3 Pro (earbuds) | <img src="docs/icons/yes.svg" width="14" alt="yes"> left, right, case | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient | [@Aryan447](https://github.com/Aryan447) |
 | Bose QC45 (over-ear)         | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure        | <img src="docs/icons/yes.svg" width="14" alt="yes"> ANC · Ambient (no Off) | [@Driskol](https://github.com/Driskol) |
+| Bose QC35 (over-ear)         | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure        | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC (Low / High) — no Ambient | [@pedrohfp](https://github.com/pedrohfp) |
 | Nothing Ear (a) (earbuds)   | <img src="docs/icons/yes.svg" width="14" alt="yes"> left, right, case | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC (Low / Mid / High / Adaptive) · Ambient · low latency | [@Jenesaispas69](https://github.com/Jenesaispas69) |
 | CMF Headphone Pro (over-ear) | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC (Low / Mid / High / Adaptive) · Ambient · low latency | [@adilahmad17](https://github.com/adilahmad17) |
+| CMF Buds 2 (earbuds)         | <img src="docs/icons/yes.svg" width="14" alt="yes"> left, right, case | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC (Low / Mid / High / Adaptive) · Ambient · low latency | [@HanzGeeratz](https://github.com/HanzGeeratz) |
 | Nothing Ear · Headphone (1) | <img src="docs/icons/yes.svg" width="14" alt="yes"> expected (one figure on Headphone (1)) | <img src="docs/icons/yes.svg" width="14" alt="yes"> expected — same protocol, per [omarchy-nothing-ear](https://github.com/r-witz/omarchy-nothing-ear) | — |
 | soundcore Space One Pro (A3062, over-ear) | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient (level, wind noise reduction) | [@sasiruLK](https://github.com/sasiruLK) |
+| soundcore Life Q30 (A3028, over-ear) | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure (Fast Pair) | <img src="docs/icons/yes.svg" width="14" alt="yes"> Off · ANC · Ambient | [@kevinbsr](https://github.com/kevinbsr) |
 | Sony WH-CH520             | <img src="docs/icons/yes.svg" width="14" alt="yes"> one figure (BlueZ) | <img src="docs/icons/no.svg" width="14" alt="no"> none — Sony lists no ANC/Ambient on this model, confirmed on hardware | [@enobale](https://github.com/enobale) |
 | other Fast Pair headphones  | <img src="docs/icons/yes.svg" width="14" alt="yes"> expected          | <img src="docs/icons/unknown.svg" width="14" alt="untested">                                    | —                              |
 

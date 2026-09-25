@@ -1,0 +1,120 @@
+Owner: ncr
+Model: JBL TUNE230NC TWS (78:5E:A2:76:7F:20, Fast Pair model id 71f20a)
+Date: 2026-09-21
+Source: the running plugin's IPC (modeFor, bleAddressFor, leftFor, rightFor,
+batteryCaseFor), polled every 0.5 s; helper PIDs from the process list; the
+socket inodes of the gfps-reader process from /proc/<pid>/fd. A changed
+inode is a Fast Pair channel that was closed and opened again.
+
+What was done: with the pair connected and in ANC, the jbl-bridge's
+btgatt-client child was killed. The bridge then ends with "the BLE link
+closed", exit 1, the transient exit. Ten trials: three on the plugin without
+the channel reopen on exit 1 (1.3.5 and 1.3.6), seven with it (PR #19's
+DeviceFollower.qml on the same tree, shell restarted to load it). Music
+played through the pair during the six "music" and "listen" trials.
+
+Result: without the reopen the reader's sockets never change. With it, one
+socket is replaced about 0.7 s after every exit 1: one reopen per exit, one
+bridge start per exit, no loop. The mode is back after 16-18 s either way.
+The battery rows stay on screen throughout; in pr19-2 the reopen brought a
+fresh reading (left 90 -> 80, case 90 -> 67). PipeWire counted no error on
+bluez_output.78_5E_A2_76_7F_20.1 before or after any music trial, and the
+owner heard no dropout.
+
+pr19-1: about 26 s after the kill the whole shell restarted ("Exiting due to
+IPC request" in its journal), which replaced the reader; the rows after that
+restart are omitted below. It did not happen again in nine further trials and
+is not something a plugin's QML can ask for.
+
+A Bluetooth disconnect / connect with the reopen loaded: the mode was back
+after 11 s and the pair announced a new BLE address (4F:F2:6C:24:BC:FB ->
+4C:E8:AE:B7:3F:13). A later shell restart announced a third,
+41:63:8E:6D:03:E4. This pair rotates its address too.
+
+Not tested: an address that rotates in the middle of a session, which is the
+case the reopen exists for; several exit 1 in a row with the growing pause;
+an exit 1 while the reader is not running.
+
+Rows where nothing changed are omitted. "sockets" are the reader's. Trial
+names: main = without the reopen, pr19 = with it. The header of music-main-1
+reads "without #with #199": a bug in the script that printed the label; that
+trial ran without the reopen, as its unchanged sockets show.
+
+## main-1
+== main-1, 2026-09-21T11:59:42+02:00, plugin v1.1.0-75-gf413d5b
+11:59:42.2 mode=anc ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1127472 sockets=socket:[17896433] socket:[17896434] socket:[17900517] socket:[17913065]
+-- 11:59:42.4 kill btgatt-client 1127489 (child of jbl-bridge 1127472)
+11:59:42.4 mode=unsupported ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge= sockets=socket:[17896433] socket:[17896434] socket:[17900517] socket:[17913065]
+11:59:52.7 mode=pending ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1129743 sockets=socket:[17896433] socket:[17896434] socket:[17900517] socket:[17913065]
+11:59:58.5 mode=anc ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1129743 sockets=socket:[17896433] socket:[17896434] socket:[17900517] socket:[17913065]
+## music-main-1
+== music-main-1, 2026-09-21T12:10:28+02:00, plugin 5d4f6f1 without #with #199
+12:10:28.3 mode=anc ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1157916 sockets=socket:[17988276] socket:[17994827] socket:[17994828] socket:[17994829]
+-- 12:10:28.5 kill btgatt-client 1157935 (child of jbl-bridge 1157916)
+12:10:28.5 mode=unsupported ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge= sockets=socket:[17988276] socket:[17994827] socket:[17994828] socket:[17994829]
+12:10:38.9 mode=pending ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1162437 sockets=socket:[17988276] socket:[17994827] socket:[17994828] socket:[17994829]
+12:10:45.8 mode=anc ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1162437 sockets=socket:[17988276] socket:[17994827] socket:[17994828] socket:[17994829]
+## listen-main-1
+== listen-main-1, 2026-09-21T12:22:04+02:00, plugin 5d4f6f1 without PR19
+12:22:04.5 mode=anc ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1180071 sockets=socket:[18034408] socket:[18034409] socket:[18034410] socket:[18040957]
+-- 12:22:05.2 kill btgatt-client 1180088 (child of jbl-bridge 1180071)
+12:22:05.2 mode=unsupported ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge= sockets=socket:[18034408] socket:[18034409] socket:[18034410] socket:[18040957]
+12:22:15.0 mode=unsupported ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1184047 sockets=socket:[18034408] socket:[18034409] socket:[18034410] socket:[18040957]
+12:22:15.8 mode=pending ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1184047 sockets=socket:[18034408] socket:[18034409] socket:[18034410] socket:[18040957]
+12:22:22.4 mode=anc ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1184047 sockets=socket:[18034408] socket:[18034409] socket:[18034410] socket:[18040957]
+## pr19-1
+== pr19-1, 2026-09-21T12:01:25+02:00, plugin v1.1.0-75-gf413d5b-dirty
+12:01:25.9 mode=anc ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1136848 sockets=socket:[17926994] socket:[17926996] socket:[17926997] socket:[17940102]
+-- 12:01:26.1 kill btgatt-client 1136867 (child of jbl-bridge 1136848)
+12:01:26.1 mode=unsupported ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge= sockets=socket:[17926994] socket:[17926996] socket:[17926997] socket:[17934284]
+12:01:36.4 mode=pending ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1138425 sockets=socket:[17926994] socket:[17926996] socket:[17926997] socket:[17934284]
+12:01:42.7 mode=anc ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1138425 sockets=socket:[17926994] socket:[17926996] socket:[17926997] socket:[17934284]
+## pr19-2
+== pr19-2, 2026-09-21T12:02:16+02:00, plugin v1.1.0-75-gf413d5b-dirty
+12:02:16.3 mode=anc ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge=1142238 sockets=socket:[17944139] socket:[17950050] socket:[17950051] socket:[17950052]
+-- 12:02:16.5 kill btgatt-client 1142313 (child of jbl-bridge 1142238)
+12:02:16.5 mode=unsupported ble=4F:F2:6C:24:BC:FB L=90 R=100 case=90 bridge= sockets=socket:[17950050] socket:[17950051] socket:[17950052]
+12:02:17.2 mode=unsupported ble=4F:F2:6C:24:BC:FB L=80 R=100 case=67 bridge= sockets=socket:[17945280] socket:[17950050] socket:[17950051] socket:[17950052]
+12:02:26.8 mode=pending ble=4F:F2:6C:24:BC:FB L=80 R=100 case=67 bridge=1145416 sockets=socket:[17945280] socket:[17950050] socket:[17950051] socket:[17950052]
+12:02:33.7 mode=anc ble=4F:F2:6C:24:BC:FB L=80 R=100 case=67 bridge=1145416 sockets=socket:[17945280] socket:[17950050] socket:[17950051] socket:[17950052]
+12:02:53.7 mode=anc ble=4F:F2:6C:24:BC:FB L=80 R=90 case=67 bridge=1145416 sockets=socket:[17945280] socket:[17950050] socket:[17950051] socket:[17950052]
+## pr19-3
+== pr19-3, 2026-09-21T12:03:06+02:00, plugin v1.1.0-75-gf413d5b-dirty
+12:03:06.1 mode=anc ble=4F:F2:6C:24:BC:FB L=80 R=90 case=67 bridge=1145416 sockets=socket:[17945280] socket:[17950050] socket:[17950051] socket:[17950052]
+-- 12:03:06.3 kill btgatt-client 1145433 (child of jbl-bridge 1145416)
+12:03:06.3 mode=unsupported ble=4F:F2:6C:24:BC:FB L=80 R=90 case=67 bridge= sockets=socket:[17950050] socket:[17950051] socket:[17950052]
+12:03:07.0 mode=unsupported ble=4F:F2:6C:24:BC:FB L=80 R=90 case=67 bridge= sockets=socket:[17950050] socket:[17950051] socket:[17950052] socket:[17979395]
+12:03:16.5 mode=pending ble=4F:F2:6C:24:BC:FB L=80 R=90 case=67 bridge=1151936 sockets=socket:[17950050] socket:[17950051] socket:[17950052] socket:[17979395]
+12:03:22.7 mode=anc ble=4F:F2:6C:24:BC:FB L=80 R=90 case=67 bridge=1151936 sockets=socket:[17950050] socket:[17950051] socket:[17950052] socket:[17979395]
+## music-pr19-1
+== music-pr19-1, 2026-09-21T12:11:22+02:00, plugin 5d4f6f1 with PR19
+12:11:22.1 mode=anc ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1165837 sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18021766]
+-- 12:11:22.4 kill btgatt-client 1165868 (child of jbl-bridge 1165837)
+12:11:22.4 mode=unsupported ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge= sockets=socket:[18016577] socket:[18016578] socket:[18016579]
+12:11:23.1 mode=unsupported ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge= sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18024606]
+12:11:32.7 mode=pending ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1167366 sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18024606]
+12:11:39.6 mode=anc ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1167366 sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18024606]
+## music-pr19-2
+== music-pr19-2, 2026-09-21T12:11:57+02:00, plugin 5d4f6f1 with PR19
+12:11:57.5 mode=anc ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1167366 sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18024606]
+-- 12:11:57.7 kill btgatt-client 1167383 (child of jbl-bridge 1167366)
+12:11:57.7 mode=unsupported ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge= sockets=socket:[18016577] socket:[18016578] socket:[18016579]
+12:11:58.4 mode=unsupported ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge= sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18029952]
+12:12:08.0 mode=pending ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1170608 sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18029952]
+12:12:15.6 mode=anc ble=4C:E8:AE:B7:3F:13 L=70 R=80 case=67 bridge=1170608 sockets=socket:[18016577] socket:[18016578] socket:[18016579] socket:[18029952]
+## listen-pr19-1
+== listen-pr19-1, 2026-09-21T12:22:57+02:00, plugin 5d4f6f1 with PR19
+12:22:57.5 mode=anc ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1189103 sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18080194]
+-- 12:22:57.7 kill btgatt-client 1189120 (child of jbl-bridge 1189103)
+12:22:57.7 mode=unsupported ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge= sockets=socket:[18073522] socket:[18073523] socket:[18080191]
+12:22:58.4 mode=unsupported ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge= sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18082256]
+12:23:08.1 mode=pending ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1191440 sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18082256]
+12:23:14.3 mode=anc ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1191440 sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18082256]
+## listen-pr19-2
+== listen-pr19-2, 2026-09-21T12:23:40+02:00, plugin 5d4f6f1 with PR19
+12:23:40.5 mode=anc ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1191440 sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18082256]
+-- 12:23:40.7 kill btgatt-client 1191457 (child of jbl-bridge 1191440)
+12:23:40.7 mode=unsupported ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge= sockets=socket:[18073522] socket:[18073523] socket:[18080191]
+12:23:41.4 mode=unsupported ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge= sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18098337]
+12:23:51.1 mode=pending ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1194565 sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18098337]
+12:23:57.3 mode=anc ble=41:63:8E:6D:03:E4 L=60 R=70 case=67 bridge=1194565 sockets=socket:[18073522] socket:[18073523] socket:[18080191] socket:[18098337]

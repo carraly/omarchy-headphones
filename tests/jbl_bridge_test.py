@@ -64,7 +64,7 @@ class Session(harness.Session):
     bridge's opening conversation on a thread; "wait_start" joins it, after
     which state "start_code" is what it returned (null to carry on)."""
 
-    def __init__(self):
+    def __init__(self, model_id="0x1234"):
         super().__init__(bridge_module)
         self.support = []
         self.client = None
@@ -84,7 +84,7 @@ class Session(harness.Session):
         bridge_module.remember_answered = lambda model: self.support.append(("answered", model))
         bridge_module.record_miss = lambda model: self.support.append(("miss", model))
 
-        self.bridge = bridge_module.Bridge("48:B4:41:00:00:01", "0x1234")
+        self.bridge = bridge_module.Bridge("48:B4:41:00:00:01", model_id)
         original = self.bridge.on_client_line
 
         def on_client_line(line):

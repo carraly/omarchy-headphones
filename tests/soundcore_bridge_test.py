@@ -125,5 +125,36 @@ class Unknown(unittest.TestCase):
         self.assertEqual(s.timers, [])
 
 
+class FourByteBlock(unittest.TestCase):
+    """The Life Q30's block is four bytes: no ambient level, no wind switch.
+    The state is the complete frame body in docs/captures/soundcore-life-q30.txt."""
+
+    UUID = "0cf12d31-fac3-4553-bd80-d6832e7b302a"
+    STATE = bytes.fromhex(
+        "0100fefe9d93949faa8d8f7800000000000000000000000000000000000000000000"
+        "010002000030352e32343330323842343634354638353045383800010101000001030407")
+
+    def test_level_and_switch_commands_send_nothing(self):
+        s = Session(self.UUID)
+        s.receive(inbound((0x01, 0x01), self.STATE))
+        frames, lines = list(s.frames), list(s.lines)
+        for line in ("level 3", "voice on", "wind on", "wind off"):
+            s.command(line)
+        self.assertEqual(s.frames, frames)
+        self.assertEqual(s.lines, lines)
+        self.assertNotIn("level", s.lines[-1])
+        self.assertNotIn("voice", s.lines[-1])
+
+    def test_mode_write_is_four_bytes_of_the_devices_own(self):
+        s = Session(self.UUID)
+        s.receive(inbound((0x01, 0x01), self.STATE))
+        s.command("set ambient")
+        make = bridge_module.make_packet
+        # 35..38 of the captured state, with the mode replaced: the firmware
+        # string at 39 stays out of the write.
+        self.assertEqual(s.frames[-1], make(bridge_module.CMD_SOUND_MODES_SET,
+                                            bytes([0x01]) + self.STATE[36:39]))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -32,8 +32,9 @@ Nothing X protocol, and advertises the NT Link UUID
 (aeac4a03-dff5-498f-843a-34487cf133eb) in its SDP record, which is how the
 widget picks this backend. The socket is opened directly rather than through
 an org.bluez.Profile1. The reported device name selects the channel before
-connecting: the known earbuds keep 15, CMF Headphone Pro uses 28. Only an
-unrecognised name tries both. A caller without a name keeps channel 15.
+connecting: the known earbuds keep 15, CMF Headphone Pro uses 28, CMF Buds 2
+uses 16. Only an unrecognised name tries both. A caller without a name keeps
+channel 15.
 
 The vocabulary is the panel's, not Nothing's. Nothing X offers six settings —
 Off, Transparency, and noise cancelling at Low, Mid, High or Adaptive — and
@@ -87,6 +88,8 @@ MODELS = {
     "ear (stick)": {"channels": (15,)},
     "headphone (1)": {"channels": (15,)},
     "cmf headphone pro": {"channels": (28,)},
+    "cmf buds 2": {"channels": (16,)},
+    "buds 2": {"channels": (16,)},
 }
 UNKNOWN = {"channels": (15, 28)}
 NAMELESS = {"channels": (15,)}

@@ -36,11 +36,12 @@ private address until something scans for it. btgatt-client connects straight to
 the address, which is exactly what is needed, and it flushes after every
 notification, so nothing has to unbuffer it from the outside.
 
-Protocol, confirmed on a JBL TUNE230NC TWS — see PROTOCOL.md:
+Protocol, confirmed on a JBL TUNE230NC TWS and a JBL Wave Buds 2 — see
+PROTOCOL.md:
 
     service 65786365-6c70-6f69-6e74-2e636f6d0000   ("excelpoint.com")
-    notify  value handle 0x000c
-    write   value handle 0x0010
+    notify  value handle 0x000c (TUNE230NC) / 0xa205 (Wave Buds 2)
+    write   value handle 0x0010 (TUNE230NC) / 0xa202 (Wave Buds 2)
     frame   AA <cmd> <payload length> <payload...>
     modes   cmd 0x91, opcode 0x10 set / 0x11 get / 0x12 report,
             then slot/value pairs: 1 ANC, 2 Ambient Aware, 3 TalkThru
@@ -59,6 +60,16 @@ import time
 
 NOTIFY_HANDLE = "0x000c"
 WRITE_HANDLE = "0x0010"
+
+# The listening mode lives on an "excelpoint.com" service on both models, but
+# the value handles are not the same one to the other. The only identifier we
+# get free on every connect is the Fast Pair model id — the gfps reader passes
+# it as argv[2], and it names the model, not the pair — so the handles hang off
+# that. A model not listed keeps the TUNE230NC handles on which the protocol
+# was first confirmed; see PROTOCOL.md for what each one actually answered.
+MODELS = {
+    "ea59a0": {"notify": "0xa205", "write": "0xa202"},
+}
 
 FRAME_NOTIFY_ON = "aa 9b 02 01 01"
 FRAME_GET = "aa 91 01 11"
@@ -250,6 +261,9 @@ class Bridge:
     def __init__(self, address, model_id=""):
         self.address = address
         self.model_id = model_id
+        model = MODELS.get(model_id) or {}
+        self.notify_handle = model.get("notify", NOTIFY_HANDLE)
+        self.write_handle = model.get("write", WRITE_HANDLE)
         self.mode = None
         # btgatt-client prints "Connecting to device... Done" when the link is
         # up and "GATT discovery procedures complete" when it will take
@@ -301,7 +315,7 @@ class Bridge:
 
     def send_frame(self, frame):
         bytes_ = " ".join("0x" + b for b in frame.split())
-        self.tell("write-value %s %s" % (WRITE_HANDLE, bytes_))
+        self.tell("write-value %s %s" % (self.write_handle, bytes_))
 
     def tell(self, line):
         if self.client.poll() is not None:
@@ -413,7 +427,7 @@ class Bridge:
         if self.exit_code is not None:
             return self.exit_code
 
-        self.tell("register-notify " + NOTIFY_HANDLE)
+        self.tell("register-notify " + self.notify_handle)
         self.registered.wait(REGISTER_TIMEOUT)
         if self.exit_code is not None:
             return self.exit_code

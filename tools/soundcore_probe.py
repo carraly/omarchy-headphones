@@ -2,7 +2,17 @@
 """Probe Soundcore listening mode over RFCOMM.
 
 Registers an org.bluez.Profile1 for the Soundcore vendor UUID (0cf12d31-fac3-4553-bd80-d6832e7...),
-connects the socket, and sends a state query (0x01, 0x01), optionally setting a mode.
+connects the socket, and sends a state query (0x01, 0x01) and a sound-mode query
+(0x06, 0x01), optionally setting a mode.
+
+A set writes the device's own sound-mode bytes back with only the mode replaced:
+the 06 01 reply where there was one. The Space 2, whose answer to that question
+is untested, falls back to the six bytes at offset 71 of its state, where its
+block is known to sit. Any other device that did not answer is not written to:
+offset 71 is somewhere else's bytes on the Space One Pro and past the end on
+the Life Q30. The probe used to send a fixed
+`1f ff 00 00 01` after the mode; on the Life Q30 that filled two fields with
+values nobody chose (PROTOCOL.md, Life Q30).
 
 Usage: soundcore_probe.py <address> [seconds] [set:off|anc|ambient]
 """
@@ -26,6 +36,9 @@ CMD_STATE_UPDATE = (0x01, 0x01)
 CMD_SOUND_MODES_NOTIFY = (0x06, 0x01)
 CMD_SOUND_MODES_SET = (0x06, 0x81)
 
+# The one model whose block is known to sit at offset 71 of the state.
+SPACE_2_SUFFIX = "d1402"
+
 SET_BYTE = {"anc": 0x00, "ambient": 0x01, "off": 0x02}
 MODE_NAME = {0x00: "anc", 0x01: "ambient", 0x02: "off"}
 
@@ -44,6 +57,20 @@ def make_packet(cmd: tuple[int, int], body: bytes = b"") -> bytes:
     return raw + bytes([calc_checksum(raw)])
 
 
+def mode_write_body(wanted, reply, state_block):
+    """The body of a 06 81 write, or None when the device showed no block.
+
+    `reply` is the body of the device's 06 01 answer, `state_block` the six
+    bytes at offset 71 of the state, passed only for the Space 2. At most six
+    bytes go out, which is what soundcore-bridge writes; a shorter reply is
+    written back as short as it came.
+    """
+    block = reply if reply else state_block
+    if not block:
+        return None
+    return bytes([SET_BYTE[wanted]]) + bytes(block[1:6])
+
+
 def find_device_path_and_uuid(bus, address):
     wanted = address.upper()
     objects = dbus.Interface(bus.get_object("org.bluez", "/"),
@@ -60,16 +87,18 @@ def find_device_path_and_uuid(bus, address):
 
 
 class Link:
-    def __init__(self, fd, plan):
+    def __init__(self, fd, plan, trust_offset_71=False):
         self.fd = fd
+        self.trust_offset_71 = trust_offset_71
         self.buffer = bytearray()
-        self.sound_mode_params = [0x00, 0x1F, 0xFF, 0x00, 0x00, 0x01]
+        self.state_block = None
+        self.reply = None
         GLib.io_add_watch(fd, GLib.PRIORITY_DEFAULT,
                           GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, self.on_io)
         delay = 400
         for name, data in plan:
-            GLib.timeout_add(delay, lambda n=name, d=data: (self.send(n, d), False)[1])
-            delay += 1200
+            GLib.timeout_add(delay, lambda n=name, d=data: (self.step(n, d), False)[1])
+            delay += 800
 
     def on_io(self, _fd, condition):
         if condition & (GLib.IO_HUP | GLib.IO_ERR):
@@ -115,12 +144,19 @@ class Link:
             body = packet[9:-1]
             if cmd == CMD_STATE_UPDATE:
                 if len(body) >= 77:
-                    self.sound_mode_params = list(body[71:77])
+                    self.state_block = bytes(body[71:77])
                     mode_name = MODE_NAME.get(body[71], "unknown(%d)" % body[71])
                     print("%s <<< STATE: mode=%s params=%s" % (stamp(), mode_name, bytes(body[71:77]).hex()), flush=True)
                 else:
-                    print("%s <<< STATE (short payload: %d bytes)" % (stamp(), len(body)), flush=True)
+                    # Short for the offset this tool reads, not short of
+                    # meaning: a model whose block sits earlier answers here,
+                    # and hiding its payload hides the only evidence of where
+                    # the block is. The Life Q30's state is 70 bytes.
+                    print("%s <<< STATE (%d bytes, shorter than offset 71) %s"
+                          % (stamp(), len(body), body.hex()), flush=True)
             elif cmd == CMD_SOUND_MODES_NOTIFY:
+                if body:
+                    self.reply = bytes(body)
                 mode_name = MODE_NAME.get(body[0] if body else -1, "unknown")
                 print("%s <<< NOTIFY: mode=%s body=%s" % (stamp(), mode_name, body.hex()), flush=True)
             elif cmd == CMD_SOUND_MODES_SET:
@@ -128,6 +164,20 @@ class Link:
             else:
                 print("%s <<< PKT cmd=(0x%02x, 0x%02x) len=%d body=%s" % (
                     stamp(), cmd[0], cmd[1], total_len, body.hex()), flush=True)
+
+    def step(self, name, data):
+        """One step of the plan. A set is built here, not ahead of time: what
+        it writes depends on what the device has said by now."""
+        if name.startswith("set-"):
+            body = mode_write_body(data, self.reply,
+                                   self.state_block if self.trust_offset_71 else None)
+            if body is None:
+                print("%s !! %s not sent: the device showed no sound-mode bytes to "
+                      "write back, and guessed ones would overwrite its settings"
+                      % (stamp(), name), flush=True)
+                return
+            data = make_packet(CMD_SOUND_MODES_SET, body)
+        self.send(name, data)
 
     def send(self, name, data):
         if self.fd < 0:
@@ -157,11 +207,16 @@ def main():
 
     plan = [
         ("req_state", make_packet(CMD_STATE_UPDATE)),
+        # Ask for the sound modes as well: a device that answers 06 01 says
+        # where its block is without anyone guessing an offset.
+        ("req_sound_modes", make_packet(CMD_SOUND_MODES_NOTIFY)),
     ]
     if wanted is not None:
-        body = [SET_BYTE[wanted], 0x1F, 0xFF, 0x00, 0x00, 0x01]
-        plan.append(("set-%s" % wanted, make_packet(CMD_SOUND_MODES_SET, bytes(body))))
+        # The mode name, not a packet: Link.step builds the write from what
+        # the device answered to the two questions above.
+        plan.append(("set-%s" % wanted, wanted))
         plan.append(("req_state2", make_packet(CMD_STATE_UPDATE)))
+        plan.append(("req_sound_modes2", make_packet(CMD_SOUND_MODES_NOTIFY)))
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     bus = dbus.SystemBus()
@@ -181,7 +236,8 @@ def main():
                              out_signature="")
         def NewConnection(self, _path, fd, _properties):
             print("%s == connected" % stamp(), flush=True)
-            link["l"] = Link(fd.take(), plan)
+            link["l"] = Link(fd.take(), plan,
+                             trust_offset_71=target_uuid.endswith(SPACE_2_SUFFIX))
 
         @dbus.service.method("org.bluez.Profile1", in_signature="o", out_signature="")
         def RequestDisconnection(self, _path):

@@ -1,0 +1,111 @@
+{
+  "model": "JBL Wave Buds 2",
+  "owner": "carlosr-sh",
+  "bridge": "jbl-bridge",
+  "capture": "docs/captures/jbl-wave-buds-2.txt",
+  "notes": "Observed session 2026-09-17 on the excelpoint service: notify-on, mode query answered anc, every mode set with its report read back (the device repeats each report), restore to anc. Selected by Fast Pair model id ea59a0: notify 0xa205, write 0xa202.",
+  "session": {
+    "model_id": "ea59a0"
+  },
+  "steps": [
+    {
+      "device": "Connecting to device... Done"
+    },
+    {
+      "device": "GATT discovery procedures complete"
+    },
+    {
+      "call": "start"
+    },
+    {
+      "wait_sent": 1
+    },
+    {
+      "device": "Registered notify handler"
+    },
+    {
+      "wait_sent": 3
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 01 02 00 03 00"
+    },
+    {
+      "call": "wait_start"
+    },
+    {
+      "command": "set off"
+    },
+    {
+      "sent_last": "write-value 0xa202 0xaa 0x91 0x07 0x10 0x01 0x00 0x02 0x00 0x03 0x00"
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 00 02 00 03 00"
+    },
+    {
+      "line": {
+        "modes": true,
+        "mode": "off"
+      }
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 00 02 00 03 00"
+    },
+    {
+      "command": "set anc"
+    },
+    {
+      "sent_last": "write-value 0xa202 0xaa 0x91 0x07 0x10 0x01 0x01 0x02 0x00 0x03 0x00"
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 01 02 00 03 00"
+    },
+    {
+      "line": {
+        "modes": true,
+        "mode": "anc"
+      }
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 01 02 00 03 00"
+    },
+    {
+      "command": "set ambient"
+    },
+    {
+      "sent_last": "write-value 0xa202 0xaa 0x91 0x07 0x10 0x01 0x00 0x02 0x01 0x03 0x00"
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 00 02 01 03 00"
+    },
+    {
+      "line": {
+        "modes": true,
+        "mode": "ambient"
+      }
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 00 02 01 03 00"
+    },
+    {
+      "command": "set talkthru"
+    },
+    {
+      "sent_last": "write-value 0xa202 0xaa 0x91 0x07 0x10 0x01 0x00 0x02 0x00 0x03 0x01"
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 00 02 00 03 01"
+    },
+    {
+      "line": {
+        "modes": true,
+        "mode": "talkthru"
+      }
+    },
+    {
+      "device": "Handle Value Not/Ind: 0xa205 - (10 data bytes): aa 91 07 12 01 00 02 00 03 01"
+    },
+    {
+      "exit": null
+    }
+  ]
+}

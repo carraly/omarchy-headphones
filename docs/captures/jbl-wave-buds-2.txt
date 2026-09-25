@@ -1,0 +1,90 @@
+Owner: carlosr-sh
+Model: JBL Wave Buds 2
+Date: 2026-09-17
+Source: btgatt-client driven over a pty by jbl_capture.py; one continuous
+  LE session on the excelpoint service (0xa200): discovery, notify-on,
+  mode query, every listening-mode set with its report read back, and
+  restore of the initial mode.
+Selected protocol packets only; unrelated radio traffic omitted,
+  terminal colours removed. Every byte below is verbatim. The timestamp
+  is the driver's own elapsed clock, kept for ordering, not a timing
+  model.
+
+### CONNECT AND DISCOVERY
+  0.28 connection to 72:36:C8:11:D2:7F (LE, random address)
+  4.42 GATT discovery procedures complete
+  4.42 service - start: 0x0001, end: 0x001f, type: primary, uuid: 00001800-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0002, value: 0x0003, props: 0x0a, ext_props: 0x0000, uuid: 00002a00-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0004, value: 0x0005, props: 0x0a, ext_props: 0x0000, uuid: 00002a01-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0006, value: 0x0007, props: 0x02, ext_props: 0x0000, uuid: 00002aa6-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0008, value: 0x0009, props: 0x02, ext_props: 0x0000, uuid: 00002bf5-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x000a, value: 0x000b, props: 0x02, ext_props: 0x0000, uuid: 00002a04-0000-1000-8000-00805f9b34fb
+  4.42 service - start: 0x0020, end: 0x003f, type: primary, uuid: 00001801-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0021, value: 0x0022, props: 0x20, ext_props: 0x0000, uuid: 00002a05-0000-1000-8000-00805f9b34fb
+  4.42 descr - handle: 0x0023, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0024, value: 0x0025, props: 0x0a, ext_props: 0x0000, uuid: 00002b29-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0026, value: 0x0027, props: 0x02, ext_props: 0x0000, uuid: 00002b3a-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x0028, value: 0x0029, props: 0x02, ext_props: 0x0000, uuid: 00002b2a-0000-1000-8000-00805f9b34fb
+  4.42 service - start: 0x8000, end: 0x80ff, type: primary, uuid: 0000fe2c-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x8001, value: 0x8002, props: 0x02, ext_props: 0x0000, uuid: fe2c1233-8366-4814-8eb0-01de32100bea
+  4.42 charac - start: 0x8003, value: 0x8004, props: 0x18, ext_props: 0x0000, uuid: fe2c1234-8366-4814-8eb0-01de32100bea
+  4.42 descr - handle: 0x8005, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x8006, value: 0x8007, props: 0x18, ext_props: 0x0000, uuid: fe2c1235-8366-4814-8eb0-01de32100bea
+  4.42 descr - handle: 0x8008, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x8009, value: 0x800a, props: 0x08, ext_props: 0x0000, uuid: fe2c1236-8366-4814-8eb0-01de32100bea
+  4.42 charac - start: 0x800b, value: 0x800c, props: 0x18, ext_props: 0x0000, uuid: fe2c1237-8366-4814-8eb0-01de32100bea
+  4.42 descr - handle: 0x800d, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x800e, value: 0x800f, props: 0x1a, ext_props: 0x0000, uuid: fe2c123a-8366-4814-8eb0-01de32100bea
+  4.42 descr - handle: 0x8010, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0x8011, value: 0x8012, props: 0x02, ext_props: 0x0000, uuid: fe2c1239-8366-4814-8eb0-01de32100bea
+  4.42 service - start: 0xa000, end: 0xa0ff, type: primary, uuid: 86868686-8686-8686-8686-868686868686
+  4.42 charac - start: 0xa001, value: 0xa002, props: 0x1c, ext_props: 0x0000, uuid: 97979797-9797-9797-9797-979797979797
+  4.42 descr - handle: 0xa003, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 service - start: 0xa100, end: 0xa1ff, type: primary, uuid: 01000100-0000-1000-8000-009078563412
+  4.42 charac - start: 0xa101, value: 0xa102, props: 0x0c, ext_props: 0x0000, uuid: 03000300-0000-1000-8000-009278563412
+  4.42 descr - handle: 0xa103, uuid: 00002901-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0xa104, value: 0xa105, props: 0x10, ext_props: 0x0000, uuid: 02000200-0000-1000-8000-009178563412
+  4.42 descr - handle: 0xa106, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 descr - handle: 0xa107, uuid: 00002901-0000-1000-8000-00805f9b34fb
+  4.42 service - start: 0xa200, end: 0xa2ff, type: primary, uuid: 65786365-6c70-6f69-6e74-2e636f6d0000
+  4.42 charac - start: 0xa201, value: 0xa202, props: 0x0c, ext_props: 0x0000, uuid: 65786365-6c70-6f69-6e74-2e636f6d0002
+  4.42 descr - handle: 0xa203, uuid: 00002901-0000-1000-8000-00805f9b34fb
+  4.42 charac - start: 0xa204, value: 0xa205, props: 0x10, ext_props: 0x0000, uuid: 65786365-6c70-6f69-6e74-2e636f6d0001
+  4.42 descr - handle: 0xa206, uuid: 00002902-0000-1000-8000-00805f9b34fb
+  4.42 descr - handle: 0xa207, uuid: 00002901-0000-1000-8000-00805f9b34fb
+
+### NOTIFY-ON AND INITIAL STATE
+  4.74 -> register-notify 0xa205  registered, handler id 2
+  4.78 <- notify 0xa205  (20 bytes): aa 12 25 4a 42 4c 20 57 61 76 65 20 42 75 64 73 20 32 00 00   "JBL Wave Buds 2"
+  6.74 -> write-value 0xa202  (5 bytes): aa 9b 02 01 01   notify-on
+  6.81 <- notify 0xa205  (9 bytes): aa 06 05 00 02 00 1f 01 00   mode-bridge service alive
+  8.74 -> write-value 0xa202  (4 bytes): aa 91 01 11   get
+  8.79 <- notify 0xa205  (10 bytes): aa 91 07 12 01 01 02 00 03 00   mode anc (initial)
+
+### SET MODE -> off
+ 10.79 -> write-value 0xa202  (10 bytes): aa 91 07 10 01 00 02 00 03 00   set off
+ 11.40 <- notify 0xa205  (10 bytes): aa 91 07 12 01 00 02 00 03 00   mode off
+ 11.40 <- notify 0xa205  (10 bytes): aa 91 07 12 01 00 02 00 03 00   mode off
+
+### SET MODE -> anc
+ 13.40 -> write-value 0xa202  (10 bytes): aa 91 07 10 01 01 02 00 03 00   set anc
+ 13.96 <- notify 0xa205  (10 bytes): aa 91 07 12 01 01 02 00 03 00   mode anc
+ 13.96 <- notify 0xa205  (10 bytes): aa 91 07 12 01 01 02 00 03 00   mode anc
+
+### SET MODE -> ambient
+ 15.96 -> write-value 0xa202  (10 bytes): aa 91 07 10 01 00 02 01 03 00   set ambient
+ 16.48 <- notify 0xa205  (10 bytes): aa 91 07 12 01 00 02 01 03 00   mode ambient
+ 16.53 <- notify 0xa205  (10 bytes): aa 91 07 12 01 00 02 01 03 00   mode ambient
+
+### SET MODE -> talkthru
+ 18.48 -> write-value 0xa202  (10 bytes): aa 91 07 10 01 00 02 00 03 01   set talkthru
+ 19.00 <- notify 0xa205  (10 bytes): aa 91 07 12 01 00 02 00 03 01   mode talkthru
+ 19.09 <- notify 0xa205  (10 bytes): aa 91 07 12 01 00 02 00 03 01   mode talkthru
+
+### RESTORE INITIAL STATE (anc)
+ 21.00 -> write-value 0xa202  (10 bytes): aa 91 07 10 01 01 02 00 03 00   set anc
+ 21.57 <- notify 0xa205  (10 bytes): aa 91 07 12 01 01 02 00 03 00   mode anc
+ 21.57 <- notify 0xa205  (10 bytes): aa 91 07 12 01 01 02 00 03 00   mode anc
+
+### BATTERY EVENT
+ 23.37 <- notify 0xa205  (20 bytes): aa 06 14 00 02 00 06 01 05 00 1a 02 00 14 00 1b 02 00 1e 00
