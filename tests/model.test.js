@@ -802,7 +802,7 @@ Deno.test("every backend row names a bridge that exists, with a test file and a 
       .filter((entry) => entry.name.endsWith(".json"));
     assertEquals(pins.length > 0, true, row.name + " has a pin");
     assertEquals(Array.isArray(row.args), true, row.name + " args");
-    assertEquals(!!row.ble || !!row.uuids || !!row.uuidPrefix, true, row.name + " claims something");
+    assertEquals(!!row.ble || !!row.uuids || !!row.uuidPrefix || !!row.modelNames, true, row.name + " claims something");
   }
 });
 
@@ -1202,4 +1202,47 @@ Deno.test("WH-CH520 owner SDP retains Sony routing for battery-only handling", a
   assertEquals(Model.bridgeArgs("sony", {
     address: "E8:9E:13:CF:9A:71", uuid: Model.SONY_MDR_V2_UUID, name: "WH-CH520",
   }), ["E8:9E:13:CF:9A:71", Model.SONY_MDR_V2_UUID, "WH-CH520"]);
+});
+
+Deno.test("NC9 Pro routing requires its reported name and observed service", async () => {
+  const record = await Deno.readTextFile(
+    new URL("../docs/captures/tozo-nc9-pro-bluetoothctl.txt", import.meta.url));
+  const ids = Model.uuidsFromBluetoothctl(record);
+  assertEquals(ids.length, 9);
+  assertEquals(Model.controlBackend([...ids].reverse(), "", "TOZO NC9 Pro"), "tozo");
+  assertEquals(Model.controlBackend(ids.map(id => id.toUpperCase()), "", "TOZO NC9 Pro"), "tozo");
+  assertEquals(Model.controlBackend(ids, "", "TOZO NC9 Pro"), "tozo");
+  assertEquals(Model.controlBackend(ids, "", "Someone else's SPP headphones"), "");
+  assertEquals(Model.controlBackend(ids, "", "TOZO NC9 Pro Box"), "");
+  assertEquals(Model.controlBackend(ids, ""), "");
+  assertEquals(Model.controlBackend([], "", "TOZO NC9 Pro"), "");
+  assertEquals(Model.controlBackend([Model.SONY_MDR_V2_UUID, ...ids], "", "TOZO NC9 Pro"), "sony");
+  assertEquals(Model.controlBackend(["0000b610-0000-1000-8000-00805f9b34fb"], "", "TOZO NC9 Pro"), "tozo");
+  assertEquals(Model.bridgeArgs("tozo", {address:"94:4B:F8:C1:5F:98", name:"TOZO NC9 Pro"}),
+    ["94:4B:F8:C1:5F:98", "TOZO NC9 Pro"]);
+});
+
+Deno.test("TOZO six modes are explicit and keep the existing default four", () => {
+  const modes = ["off", "anc", "ambient", "wind", "leisure", "adaptive"];
+  assertEquals(Model.modesAvailable({available:modes}, "tozo"), modes);
+  assertEquals(Model.modesAvailable({}), ["off", "anc", "ambient", "talkthru"]);
+  assertEquals(Model.modeOptions(modes, "tozo").map(o => o.label),
+    ["Normal", "ANC", "Transparency", "Wind Noise", "Leisure", "Adaptive"]);
+  assertEquals(Model.modeOptions(Model.modesAvailable({}), "jbl").map(o => o.label),
+    ["Off", "ANC", "Ambient", "TalkThru"]);
+  const keys = Model.modeOptions(modes, "tozo").map(o => o.key);
+  assertEquals(new Set(keys).size, 6);
+});
+
+Deno.test("extra modes come from the backend row, and only that row", () => {
+  const six = ["off", "anc", "ambient", "wind", "leisure", "adaptive"];
+  for (const row of Model.BACKENDS.filter(r => r.name !== "tozo")) {
+    assertEquals(Model.modeNames(row.name), Model.MODE_ORDER, row.name);
+    assertEquals(Model.modesAvailable({ available: six }, row.name), ["off", "anc", "ambient"], row.name);
+    assertEquals(Model.modeOptions(Model.MODE_ORDER, row.name).map(o => o.label),
+      ["Off", "ANC", "Ambient", "TalkThru"], row.name);
+  }
+  assertEquals(Model.modesAvailable({ available: six }, ""), ["off", "anc", "ambient"]);
+  assertEquals(Model.modesAvailable({}, "tozo"), Model.MODE_ORDER);
+  assertEquals(Model.allModeNames(), [...Model.MODE_ORDER, "wind", "leisure", "adaptive"]);
 });

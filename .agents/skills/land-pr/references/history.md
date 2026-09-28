@@ -34,6 +34,13 @@ decisions then, not live status.
 | #21 Sony WH-1000XM4 ambient | A second owner of the same model edited the first owner's pin, whose own notes say it was not recorded on hardware. The pin check stays red by design; the first owner was asked to test, and whether a second owner's confirmation is enough is the maintainer's decision, not the reviewer's. `action_required` on `check` needs the maintainer's click and is not a result. A usability repair (ambient level after ANC) used only frames already in the owner's capture and went to the contributor's branch as one `Review:` commit for the owner to test; it was not run on hardware by the reviewer. |
 | #16 Soundcore R60i NC | A claim in the description (ambient level 1-5 works) had no frame behind it: the capture's level byte was 0 throughout. Asking for one named byte got further than asking for "more captures". The probe the owner was about to rerun wrote fixed bytes after the mode; it was fixed first (1.3.8) so that gathering evidence could not overwrite the owner's settings. |
 
+## Added 2026-09-28
+
+| Review | Lesson retained |
+| --- | --- |
+| #23 TOZO NC9 Pro / 1.3.12 | The contribution worked but put brand checks (`backend === "tozo"`) into shared `Model.js` functions; review moved them onto the row (`extraModes`, `modeLabels`) with a test that every other row still draws and accepts only the four names. No wire change, so the owner's hardware test stood; the maintainer checked the panel on JBL and Sony because the mode buttons became a `Repeater`. Review commits need not go to the contributor's branch: merging the PR head plus `Review:` commits into main closes the PR as merged. `git merge -F -` does not read stdin; the message went nowhere, the merge failed, and the version bump landed alone on the local branch — caught before the push. Give the message as a file and check the graph before bumping. |
+| #24 soundcore P31i, #16 R60i NC | Both answer `06 01` as `xx 51 00 00 00 00`; on the six-byte path the panel draws a level slider and wind switch whose writes no such device ever answered. Both owners were asked for the probe's replies at level 1 and 5 and wind on/off, with the bridge left alone until the maintainer sees them. The R60i's own row (offset 119) corroborated the offset suggested for the P31i. A first-time contributor's `check` sat at `action_required` until the maintainer approved it. From here on, a comment asking a contributor to act ends with a copy-paste prompt for their coding agent, written plainly enough for a person to follow. |
+
 ## Source index
 
 Conversation IDs locate original Claude project records or Codex archived
@@ -55,6 +62,7 @@ older summary that still called it pending.
 | Canonical tests | `01a08019-5657-7e03-a1c4-4e26114b9cb9` | `033c2ca`, `63a7704` |
 | #12 | `01a086e2-51d4-7062-963b-b045ee5d0298` | `acadbc9`, `22497ef`, `6bf8460`, `417985c` |
 | #16, #18, #19, #21 | `72dffa6e-572a-4798-b972-bb7ef5ed0825` | `70f3094`, `06bd3fb`, `2b4ac59`, `ad321c4` |
+| #23, #24, #16 comments | `ce83b6e2-c43c-4575-8326-714e1df18d84` | `08ba49d`, `477904f`, `d3a37f1` |
 
 ## Deliberate updates to the old skill
 

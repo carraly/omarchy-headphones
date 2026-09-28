@@ -765,6 +765,50 @@ var BACKENDS = [
     ]
   },
   {
+    "name": "tozo",
+    "bridge": "tozo-bridge",
+    "modelNames": [
+      "TOZO NC9 Pro"
+    ],
+    "modelUuids": [
+      "00001101-0000-1000-8000-00805f9b34fb",
+      "0000b610-0000-1000-8000-00805f9b34fb"
+    ],
+    "args": [
+      "address",
+      "name"
+    ],
+    "runtime": false,
+    "controls": {
+      "noise.mode": {
+        "type": "enum",
+        "field": "mode",
+        "choicesField": "available",
+        "choices": [
+          "off",
+          "anc",
+          "ambient",
+          "wind",
+          "leisure",
+          "adaptive"
+        ],
+        "command": "set"
+      }
+    },
+    "needsBleAddress": false,
+    "supportCache": "",
+    "uuidPreference": [],
+    "extraModes": [
+      "wind",
+      "leisure",
+      "adaptive"
+    ],
+    "modeLabels": {
+      "off": "Normal",
+      "ambient": "Transparency"
+    }
+  },
+  {
     "name": "jbl",
     "bridge": "jbl-bridge",
     "ble": true,
@@ -829,6 +873,11 @@ function controlBackend(uuids, bleAddress, name, modelId) {
           && (!row.needsBleAddress || str(bleAddress).trim() !== "")) return row.name
       continue
     }
+    // A legacy row claimed by the exact reported name plus one observed UUID.
+    if (row.modelNames && row.modelNames.indexOf(str(name)) !== -1) {
+      for (var m = 0; m < row.modelUuids.length; m++)
+        if (ids.indexOf(row.modelUuids[m]) !== -1) return row.name
+    }
     if (row.ble) {
       if (str(bleAddress).trim() !== "") return row.name
       continue
@@ -888,20 +937,60 @@ function sonyUuidFor(uuids) {
   return v1
 }
 
-// The order the panel draws them in, and the only names a bridge may use.
+// The order the panel draws them in, and the names every bridge may use.
 var MODE_ORDER = ["off", "anc", "ambient", "talkthru"]
+
+// Every mode button the panel can draw, in the order it draws them, with the
+// key that reaches it. The first four are MODE_ORDER; the rest exist only on a
+// backend whose row lists them in `extraModes`, and a row's `modeLabels`
+// renames a button to what the device's own app calls it.
+var MODE_OPTIONS = [
+  { value: "off", key: "o", label: "Off", tooltip: "No noise control" },
+  { value: "anc", key: "n", label: "ANC", tooltip: "Noise Cancelling" },
+  { value: "ambient", key: "a", label: "Ambient", tooltip: "Ambient Aware" },
+  { value: "talkthru", key: "t", label: "TalkThru", tooltip: "TalkThru" },
+  { value: "wind", key: "w", label: "Wind Noise", tooltip: "Reduce Wind Noise" },
+  { value: "leisure", key: "e", label: "Leisure", tooltip: "Leisure Mode" },
+  { value: "adaptive", key: "d", label: "Adaptive", tooltip: "Adaptive Mode" }
+]
+
+// The names this backend may report: MODE_ORDER, plus its row's extras.
+function modeNames(backend) {
+  var row = backendRow(backend)
+  var extra = row && row.extraModes ? row.extraModes : []
+  var out = []
+  for (var i = 0; i < MODE_OPTIONS.length; i++) {
+    var value = MODE_OPTIONS[i].value
+    if (MODE_ORDER.indexOf(value) !== -1 || extra.indexOf(value) !== -1) out.push(value)
+  }
+  return out
+}
+
+// Every name any backend may report — what setMode accepts before the
+// follower checks it against the device's own list.
+function allModeNames() {
+  var out = MODE_ORDER.slice()
+  for (var r = 0; r < BACKENDS.length; r++) {
+    var extra = BACKENDS[r].extraModes || []
+    for (var i = 0; i < extra.length; i++)
+      if (out.indexOf(extra[i]) === -1) out.push(extra[i])
+  }
+  return out
+}
 
 // Which modes to offer for the state the bridge last reported. A line with no
 // `available` key is the JBL bridge, which names none and means all four — its
 // protocol has one fixed set of slots. The Sony bridge lists what the headset
 // has, and an over-ear WH has no TalkThru. Names it does not recognise are
 // dropped rather than drawn: a button the device will not take does nothing.
-function modesAvailable(state) {
+// A missing `available` is always the four, whatever the row's extras.
+function modesAvailable(state, backend) {
   var list = state ? state.available : undefined
   if (!list || !Array.isArray(list)) return MODE_ORDER.slice()
   var out = []
-  for (var i = 0; i < MODE_ORDER.length; i++)
-    if (list.indexOf(MODE_ORDER[i]) !== -1) out.push(MODE_ORDER[i])
+  var order = modeNames(backend)
+  for (var i = 0; i < order.length; i++)
+    if (list.indexOf(order[i]) !== -1) out.push(order[i])
   return out
 }
 
@@ -1063,4 +1152,19 @@ function ambientControlState(backend, state, live) {
   }
   var hasLevel = !!live && !!level && !level.readOnly && typeof value === "number" && isFinite(value)
   return { level: hasLevel, toggle: toggle, visible: hasLevel || toggle !== "" }
+}
+
+// The buttons for the modes this device offers, in drawing order, each under
+// the name its row gives it.
+function modeOptions(available, backend) {
+  var row = backendRow(backend)
+  var labels = row && row.modeLabels ? row.modeLabels : {}
+  var out = []
+  for (var i = 0; i < MODE_OPTIONS.length; i++) {
+    var option = MODE_OPTIONS[i]
+    if (available.indexOf(option.value) === -1) continue
+    out.push({ value: option.value, key: option.key,
+               label: labels[option.value] || option.label, tooltip: option.tooltip })
+  }
+  return out
 }

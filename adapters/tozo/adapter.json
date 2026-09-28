@@ -1,0 +1,47 @@
+{
+  "apiVersion": 1,
+  "id": "tozo",
+  "priority": 80,
+  "match": {
+    "modelNames": [
+      "TOZO NC9 Pro"
+    ],
+    "modelUuids": [
+      "00001101-0000-1000-8000-00805f9b34fb",
+      "0000b610-0000-1000-8000-00805f9b34fb"
+    ]
+  },
+  "legacy": {
+    "bridge": "tozo-bridge",
+    "args": [
+      "address",
+      "name"
+    ],
+    "controls": {
+      "noise.mode": {
+        "type": "enum",
+        "field": "mode",
+        "choicesField": "available",
+        "choices": [
+          "off",
+          "anc",
+          "ambient",
+          "wind",
+          "leisure",
+          "adaptive"
+        ],
+        "command": "set"
+      }
+    },
+    "extraModes": [
+      "wind",
+      "leisure",
+      "adaptive"
+    ],
+    "modeLabels": {
+      "off": "Normal",
+      "ambient": "Transparency"
+    }
+  },
+  "status": "active"
+}

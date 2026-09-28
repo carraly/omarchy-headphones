@@ -368,7 +368,7 @@ class RegistryBehavior(unittest.TestCase):
 
     def test_routing_preserves_uuid_precedence_and_ble_fallback(self):
         rows = descriptors()
-        self.assertEqual([r['id'] for r in rows], ['sony','samsung','nothing','xiaomi','soundcore','oppo','bose','jbl'])
+        self.assertEqual([r['id'] for r in rows], ['sony','samsung','nothing','xiaomi','soundcore','oppo','bose','tozo','jbl'])
         for row in rows:
             match = row['match']
             uuids = match.get('uuids', [match['uuidPrefix'] + '042'] if match.get('uuidPrefix') else [])

@@ -192,5 +192,8 @@ def shell_rows(root=ROOT):
                 "uuidPreference": row["match"].get("uuids", [])}
         if legacy.get("ambient"):
             item["ambient"] = legacy["ambient"]
+        for key in ("extraModes", "modeLabels"):
+            if legacy.get(key):
+                item[key] = legacy[key]
         rows.append(item)
     return rows
