@@ -291,7 +291,7 @@ Keys, while the panel is open (the panel lists them itself, bottom rows):
 | Key | Does |
 |:--|:--|
 | `o` `n` `a` `t` | Off · ANC · Ambient · TalkThru — only the modes this device has |
-| `w` `e` `d` | Reduce Wind Noise · Leisure · Adaptive (TOZO NC9 Pro) |
+| `w` `e` `d` | Reduce Wind Noise · Leisure · Adaptive (TOZO NC9 Pro) — modes of their own, not the Soundcore wind switch on `f` |
 | `[` `]` | Ambient level down / up (Sony 0-20, Soundcore 1-5) |
 | `f` | Focus on voice (Sony) / wind noise reduction (Soundcore) on / off |
 | `1` `2` `3` `4` | ANC strength: Low · Mid · High · Adaptive (Nothing / CMF) — turns ANC on at it |

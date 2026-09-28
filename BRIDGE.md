@@ -38,7 +38,7 @@ device changed on its own. Flush after every line. Keys:
 |:--|:--|:--|
 | `modes` | bool | required. `true`: the device answered and the row is live. `false`: something is wrong, and `error` says what |
 | `error` | string | with `modes: false` — the one sentence the panel shows |
-| `mode` | string | `off` · `anc` · `ambient` · `talkthru` — `MODE_ORDER` in `Model.js`, the legacy default names. TOZO explicitly adds `wind`, `leisure`, `adaptive` |
+| `mode` | string | `off` · `anc` · `ambient` · `talkthru` — `MODE_ORDER` in `Model.js`, the names every bridge may use; a row in `BACKENDS` may allow more in its `extraModes` (TOZO: `wind`, `leisure`, `adaptive`) |
 | `available` | list | the modes this device has, from the list above. Absent means all four (the JBL protocol has fixed slots); otherwise list exactly what the device offers |
 | `level` | int | the Ambient dial — Sony 0-20, Soundcore 1-5; the range is the row's `ambient` in `BACKENDS`. Only on a device that has one |
 | `voice` | bool | the switch beside the dial — Focus on voice (Sony), wind noise reduction (Soundcore). Only with `level` |
@@ -134,7 +134,8 @@ uses the address reported by the earbuds and validates the reverse association.
 Case failure preserves modes and earbud battery; a retained case reading has
 `caseStale: true`. Charging state is omitted because no encoding was observed.
 The six explicit `available` values are `off`, `anc`, `ambient`, `wind`,
-`leisure`, `adaptive`. The three additional names are accepted and displayed
-only by the TOZO backend; a missing `available` still means the original four.
+`leisure`, `adaptive`. The three additional names are the `extraModes` of the
+`tozo` row in `BACKENDS`, and are accepted and drawn only for a backend whose
+row lists them; a missing `available` still means the original four.
 Their stdin commands are `set wind`, `set leisure`, `set adaptive`, following
 the same device-reported-state rule as the existing commands.

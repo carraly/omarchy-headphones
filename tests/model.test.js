@@ -1125,3 +1125,16 @@ Deno.test("TOZO six modes are explicit and keep the existing default four", () =
   const keys = Model.modeOptions(modes, "tozo").map(o => o.key);
   assertEquals(new Set(keys).size, 6);
 });
+
+Deno.test("extra modes come from the backend row, and only that row", () => {
+  const six = ["off", "anc", "ambient", "wind", "leisure", "adaptive"];
+  for (const row of Model.BACKENDS.filter(r => r.name !== "tozo")) {
+    assertEquals(Model.modeNames(row.name), Model.MODE_ORDER, row.name);
+    assertEquals(Model.modesAvailable({ available: six }, row.name), ["off", "anc", "ambient"], row.name);
+    assertEquals(Model.modeOptions(Model.MODE_ORDER, row.name).map(o => o.label),
+      ["Off", "ANC", "Ambient", "TalkThru"], row.name);
+  }
+  assertEquals(Model.modesAvailable({ available: six }, ""), ["off", "anc", "ambient"]);
+  assertEquals(Model.modesAvailable({}, "tozo"), Model.MODE_ORDER);
+  assertEquals(Model.allModeNames(), [...Model.MODE_ORDER, "wind", "leisure", "adaptive"]);
+});
