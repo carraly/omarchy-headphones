@@ -174,6 +174,12 @@ confirmed. Example tone, with facts adapted before approval:
 > Thank you @author!! Merged as X.Y.Z :) Thanks for testing it on your
 > headphones and including the protocol notes, tests and screenshot.
 
+A comment that asks the contributor to do something (a capture, a fix, a
+rebase, a screenshot) ends with "Easiest: copy the prompt below into your
+coding agent" and a fenced prompt: numbered steps with the files, commands
+and bytes involved, what not to touch, and what to report back — written so
+a person can follow it as well as an agent.
+
 Check whether the user already posted to avoid duplicating their reply.
 Marketplace verification is separate: if requested, inspect the current
 process and use the final full SHA, with approval for public text.

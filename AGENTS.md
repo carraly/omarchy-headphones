@@ -93,6 +93,9 @@ skipped line names the tool this machine lacks.
    arguments, the Ambient row's shape. Put the row where its claim cannot
    take another brand's device; `tests/model.test.js` pins that for the
    devices that work today, and needs your device's full UUID list added.
+   Modes beyond Off / ANC / Ambient / TalkThru go in the row's `extraModes`,
+   and names the device's own app uses in its `modeLabels` (the `tozo` row
+   is the example) — not in a check on the brand's name in `Model.js`.
 4. `tests/<brand>_bridge_test.py` on `tests/harness.py` — a Session that
    captures the bridge's writes and says what "device" and "sent" mean for
    this protocol — and the first pin under `tests/pins/<brand>/`.
