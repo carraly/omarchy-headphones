@@ -106,6 +106,9 @@ The panel cannot manage arbitrary processes
 or change desktop settings. It prints no install instructions and needs no
 additional dependency.
 
-The previous Sony voice-focus timeout and strict capture timestamp rejection
-remain tracked separately. This implementation does not modify their packets,
+The previous Sony voice-focus timeout was the check's order, not the codec:
+Focus on voice was written in ANC, where the headset acknowledges and ignores
+it. Ambient-only controls now get an Ambient write first, reported as a
+`prerequisite:` check (see REFACTOR-VALIDATION.md). Strict capture timestamp
+rejection remains tracked separately. Neither change modifies their packets,
 old pins, recordings or failed outcomes.

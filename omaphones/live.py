@@ -101,6 +101,25 @@ def controls(profile):
             for case, (key, value) in writable_cases(profile).items()]
 
 
+def ambient_prerequisite(profile, client, field):
+    """The Ambient write to send before an ambient.* case, or None.
+
+    A Sony headset stores the ambient level and Focus on voice with its ambient
+    settings and applies them only in Ambient: a Focus on voice write sent in
+    ANC is acknowledged and ignored (WH-CH720N, 2026-09-28), so the case would
+    wait for a report that never comes. The panel only offers these controls
+    in Ambient; the check tests them where they are offered.
+    """
+    modes = profile["capabilities"].get("noise.mode", {}).get("values", [])
+    if not field.startswith("ambient.") or "ambient" not in modes:
+        return None
+    if hasattr(client, "refresh"):
+        client.refresh()
+    if client.state.get("values", {}).get("noise.mode") == "ambient":
+        return None
+    return json.dumps({"apiVersion": 1, "control": "noise.mode", "value": "ambient"})
+
+
 def initial_ready(profile, state):
     caps, values = state.get("capabilities", {}), state.get("values", {})
     return all(key in caps and key in values and valid_value(key, values[key], spec)
@@ -133,6 +152,14 @@ def run(profile, directory, client, output, root=profiles.ROOT, prompt=None, imp
                              for part in profile['capabilities'].get('battery', {}).get('parts', []))
             interview.configure_plan(ordered, extra)
         for case, command, field, value in ordered:
+            prerequisite = ambient_prerequisite(profile, client, field)
+            if prerequisite is not None:
+                if interview is not None:
+                    interview.event('prerequisite', 'Switching to Ambient first: this setting only applies in Ambient.',
+                                    stepId=case)
+                state = client.set(prerequisite, "noise.mode", "ambient")
+                report["checks"].append({"case": "prerequisite:" + case, "command": prerequisite,
+                                         "reported": state, "passed": True})
             if interview is not None:
                 state = interview.control(case, field, value, client, command, profile)
                 if state is None:

@@ -5,6 +5,26 @@ Branch: `architecture-v2` (started as `codex/adapter-session-evidence`).
 Built from the combined adapter branch at `d1d6e80` and current Omaphones 1.3.3
 at `f0f8006`. The merge retains the refactor tests and the WH-CH520 owner test.
 
+## Sony Focus on voice timeout explained (2026-09-28)
+
+The two timeouts on `ambient.focus_on_voice=false` in ANC came from the owner
+check's order, not from the Sony codec, which sends the same frame as
+`sony-bridge`. `live.run` puts cases that match the initial state last, so from
+ANC with voice off it sent voice on (in Ambient, after the level cases), then
+ANC, then voice off in ANC. Reproduced on the maintainer's WH-CH720N through the
+widget's own IPC (installed `sony-bridge`, no settings changed): from Off, voice
+off, level 7 — Ambient, voice on, ANC, then voice off was answered `ok` but the
+headset kept reporting voice on, in ANC and again after returning to Ambient.
+Restored to Off, voice off, level 7. Restoration had passed in both sessions
+because it writes the level first, which is an Ambient SET.
+
+`live.ambient_prerequisite` now sends `noise.mode=ambient` before any
+`ambient.*` case on a device that offers Ambient, recorded as a separate
+`prerequisite:<case>` check; the panel offers these controls only in Ambient.
+`tests/live_ambient_order_test.py` replays the order on a synthetic device that
+ignores voice outside Ambient; the old code times out on it. Not yet rerun
+through `tools/test-refactor` on hardware.
+
 ## Merged 1.3.12 (2026-09-28)
 
 `64c57fa` merged main at `e8546c0` (1.3.12, TOZO NC9 Pro from #23). Conflicts
@@ -93,7 +113,8 @@ hardware status below is unchanged and refers to the pre-rebase candidates.
 
 The independent Astra-low rehearsal on candidate `d9f1b646` confirmed audible
 Sony mode changes and return to initial ANC. It also reproduced a timeout when
-setting voice focus false in ANC, and sealing rejected backward timestamps in
+setting voice focus false in ANC (explained and fixed in the check on
+2026-09-28, above), and sealing rejected backward timestamps in
 the original BTSnoop captures. Both failures and all original bytes are retained.
 The JBL run on `faf94d4` failed before its first owner question. Its independent
 capture contains a mode Off notification (packet 8560), but the native GATT
