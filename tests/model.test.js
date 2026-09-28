@@ -1100,9 +1100,13 @@ Deno.test("WH-CH520 owner SDP retains Sony routing for battery-only handling", a
   }), ["E8:9E:13:CF:9A:71", Model.SONY_MDR_V2_UUID, "WH-CH520"]);
 });
 
-Deno.test("NC9 Pro routing requires its reported name and observed service", () => {
-  const ids = ["00001101", "0000110b", "0000110c", "0000110e", "0000111e"]
-    .map(id => id + "-0000-1000-8000-00805f9b34fb");
+Deno.test("NC9 Pro routing requires its reported name and observed service", async () => {
+  const record = await Deno.readTextFile(
+    new URL("../docs/captures/tozo-nc9-pro-bluetoothctl.txt", import.meta.url));
+  const ids = Model.uuidsFromBluetoothctl(record);
+  assertEquals(ids.length, 9);
+  assertEquals(Model.controlBackend([...ids].reverse(), "", "TOZO NC9 Pro"), "tozo");
+  assertEquals(Model.controlBackend(ids.map(id => id.toUpperCase()), "", "TOZO NC9 Pro"), "tozo");
   assertEquals(Model.controlBackend(ids, "", "TOZO NC9 Pro"), "tozo");
   assertEquals(Model.controlBackend(ids, "", "Someone else's SPP headphones"), "");
   assertEquals(Model.controlBackend(ids, "", "TOZO NC9 Pro Box"), "");
