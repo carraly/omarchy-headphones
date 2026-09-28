@@ -5,6 +5,22 @@ Branch: `architecture-v2` (started as `codex/adapter-session-evidence`).
 Built from the combined adapter branch at `d1d6e80` and current Omaphones 1.3.3
 at `f0f8006`. The merge retains the refactor tests and the WH-CH520 owner test.
 
+## Merged 1.3.12 (2026-09-28)
+
+`64c57fa` merged main at `e8546c0` (1.3.12, TOZO NC9 Pro from #23). Conflicts
+in `Model.js` (generated registry, `controlBackend`, the adapter API
+functions next to main's `modeOptions`) and `DeviceFollower.qml` (the
+four-argument `controlBackend`). TOZO is `adapters/tozo/adapter.json`, a
+legacy-only package with no protocol entry: it runs `tozo-bridge` unchanged,
+claimed by the exact reported name plus an observed UUID (`modelNames`,
+`modelUuids`), at priority 80 before the JBL BLE fallback. The registry now
+passes a legacy row's `extraModes` and `modeLabels` to the shell, so the
+generated row equals main's. `registry.select()` does not take a name and
+never returns `tozo`; only the shell routes it. No native TOZO codec exists.
+
+`CHECK_BASE=origin/main tools/check` passes (382 Python tests). Bridges, the
+Fast Pair reader, pins and captures are byte for byte main's.
+
 ## Rebased onto 1.3.11 (2026-09-25)
 
 `architecture-v2` merged main at `c0d92fc` (1.3.11) in `87e38f7`. Two
