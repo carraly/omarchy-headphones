@@ -17,7 +17,7 @@
   },
   "barWidget": {
     "displayName": "Omaphones",
-    "description": "One icon per connected set, filling with its battery; the panel shows left, right and case, and switches Off / ANC / Ambient \u2014 with the ambient level on Sony and Soundcore, ANC strength and low latency on Nothing / CMF. Six listening modes and left, right, case battery on TOZO NC9 Pro.",
+    "description": "One icon per connected set, filling with its battery; the panel shows left, right and case, and switches Off / ANC / Ambient — with the ambient level on Sony and Soundcore, ANC strength and low latency on Nothing / CMF. Six listening modes and left, right, case battery on TOZO NC9 Pro.",
     "category": "Audio",
     "aliases": [
       "jbl",
@@ -108,7 +108,7 @@
         "type": "boolean",
         "label": "Pause media when a device disconnects or comes off your ears",
         "defaultValue": true,
-        "description": "Pauses every playing media player when a followed device disconnects (switched off, out of range) and, on headsets with a wear sensor (confirmed on the Sony WH-1000XM6), the moment it comes off your ears while still connected \u2014 and resumes exactly those players when it goes back on."
+        "description": "Pauses every playing media player when a followed device disconnects (switched off, out of range) and, on headsets with a wear sensor (confirmed on the Sony WH-1000XM6), the moment it comes off your ears while still connected — and resumes exactly those players when it goes back on."
       }
     ]
   }
