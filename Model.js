@@ -515,6 +515,14 @@ var BACKENDS = [
     // iAP2-style DETECT channel that is not BMAP — the bridge probes its
     // channel candidates with BMAP itself.
     uuids: [BOSE_BMAP_UUID, BOSE_SPP_UUID], args: ["address"] },
+  { name: "tozo", bridge: "tozo-bridge",
+    modelNames: ["TOZO NC9 Pro"],
+    modelUuids: ["00001101-0000-1000-8000-00805f9b34fb", "0000b610-0000-1000-8000-00805f9b34fb"],
+    args: ["address", "name"],
+    // The NC9 Pro's three further modes, and the names its own app gives
+    // the two it shares with everyone else.
+    extraModes: ["wind", "leisure", "adaptive"],
+    modeLabels: { off: "Normal", ambient: "Transparency" } },
   { name: "jbl", bridge: "jbl-bridge",
     ble: true, args: ["bleAddress", "modelId"] }
 ]
@@ -535,12 +543,16 @@ function rowClaims(row, id) {
 // The backend to run for this device — a row's name — or "" for a device no
 // path can reach. SDP UUIDs win because they come from the device's own
 // record; a known BLE address only says the Message Stream is up.
-function controlBackend(uuids, bleAddress) {
+function controlBackend(uuids, bleAddress, reportedName) {
   var list = uuids || []
   var ids = []
   for (var i = 0; i < list.length; i++) ids.push(str(list[i]).trim().toLowerCase())
   for (var r = 0; r < BACKENDS.length; r++) {
     var row = BACKENDS[r]
+    if (row.modelNames && row.modelNames.indexOf(str(reportedName)) !== -1) {
+      for (var m = 0; m < row.modelUuids.length; m++)
+        if (ids.indexOf(row.modelUuids[m]) !== -1) return row.name
+    }
     if (row.ble) {
       if (str(bleAddress).trim() !== "") return row.name
       continue
@@ -600,20 +612,60 @@ function sonyUuidFor(uuids) {
   return v1
 }
 
-// The order the panel draws them in, and the only names a bridge may use.
+// The order the panel draws them in, and the names every bridge may use.
 var MODE_ORDER = ["off", "anc", "ambient", "talkthru"]
+
+// Every mode button the panel can draw, in the order it draws them, with the
+// key that reaches it. The first four are MODE_ORDER; the rest exist only on a
+// backend whose row lists them in `extraModes`, and a row's `modeLabels`
+// renames a button to what the device's own app calls it.
+var MODE_OPTIONS = [
+  { value: "off", key: "o", label: "Off", tooltip: "No noise control" },
+  { value: "anc", key: "n", label: "ANC", tooltip: "Noise Cancelling" },
+  { value: "ambient", key: "a", label: "Ambient", tooltip: "Ambient Aware" },
+  { value: "talkthru", key: "t", label: "TalkThru", tooltip: "TalkThru" },
+  { value: "wind", key: "w", label: "Wind Noise", tooltip: "Reduce Wind Noise" },
+  { value: "leisure", key: "e", label: "Leisure", tooltip: "Leisure Mode" },
+  { value: "adaptive", key: "d", label: "Adaptive", tooltip: "Adaptive Mode" }
+]
+
+// The names this backend may report: MODE_ORDER, plus its row's extras.
+function modeNames(backend) {
+  var row = backendRow(backend)
+  var extra = row && row.extraModes ? row.extraModes : []
+  var out = []
+  for (var i = 0; i < MODE_OPTIONS.length; i++) {
+    var value = MODE_OPTIONS[i].value
+    if (MODE_ORDER.indexOf(value) !== -1 || extra.indexOf(value) !== -1) out.push(value)
+  }
+  return out
+}
+
+// Every name any backend may report — what setMode accepts before the
+// follower checks it against the device's own list.
+function allModeNames() {
+  var out = MODE_ORDER.slice()
+  for (var r = 0; r < BACKENDS.length; r++) {
+    var extra = BACKENDS[r].extraModes || []
+    for (var i = 0; i < extra.length; i++)
+      if (out.indexOf(extra[i]) === -1) out.push(extra[i])
+  }
+  return out
+}
 
 // Which modes to offer for the state the bridge last reported. A line with no
 // `available` key is the JBL bridge, which names none and means all four — its
 // protocol has one fixed set of slots. The Sony bridge lists what the headset
 // has, and an over-ear WH has no TalkThru. Names it does not recognise are
 // dropped rather than drawn: a button the device will not take does nothing.
-function modesAvailable(state) {
+// A missing `available` is always the four, whatever the row's extras.
+function modesAvailable(state, backend) {
   var list = state ? state.available : undefined
   if (!list || !Array.isArray(list)) return MODE_ORDER.slice()
   var out = []
-  for (var i = 0; i < MODE_ORDER.length; i++)
-    if (list.indexOf(MODE_ORDER[i]) !== -1) out.push(MODE_ORDER[i])
+  var order = modeNames(backend)
+  for (var i = 0; i < order.length; i++)
+    if (list.indexOf(order[i]) !== -1) out.push(order[i])
   return out
 }
 
@@ -672,4 +724,19 @@ function bridgeCharging(state, key) {
 function bridgeCaseStale(state) {
   var battery = state ? state.battery : undefined
   return !!battery && typeof battery === "object" && battery.caseStale === true
+}
+
+// The buttons for the modes this device offers, in drawing order, each under
+// the name its row gives it.
+function modeOptions(available, backend) {
+  var row = backendRow(backend)
+  var labels = row && row.modeLabels ? row.modeLabels : {}
+  var out = []
+  for (var i = 0; i < MODE_OPTIONS.length; i++) {
+    var option = MODE_OPTIONS[i]
+    if (available.indexOf(option.value) === -1) continue
+    out.push({ value: option.value, key: option.key,
+               label: labels[option.value] || option.label, tooltip: option.tooltip })
+  }
+  return out
 }
