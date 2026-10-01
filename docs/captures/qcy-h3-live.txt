@@ -1,59 +1,7 @@
 # QCY H3 - live probe output
-
-Bottom line: the QCY H3 (Jieli JL7018F6, modalias `bluetooth:v05D6p000Ad0240`)
-does not expose any reachable control channel on this host. BlueZ holds only a
-BR/EDR bearer for it: no LE advertisement is ever emitted by the device, no
-GATT service objects appear, and the SPP (Serial Port) channel connects but
-replies to nothing. The row this capture exists for is a battery-only negative
-result; battery percentage comes from the BlueZ Battery provider
-(AVRCP / HFP battery service, already followed by the widget).
-
-## GATT object tree for the device path (ObjectManager)
-
-While `Device1.Connect()` is up, the BlueZ managed-objects tree below
-`/org/bluez/hci0/dev_84_AC_60_4A_43_F0` contains only BR/EDR media endpoints
-`sep1`..`sep5` plus `fd0`. There are no `org.bluez.GattService1` or
-`org.bluez.GattCharacteristic1` objects at any point during a 45 s probe that
-repeatedly asked the manager for a fresh tree.
-
-## LE discovery
-
-`StartDiscovery` with `DuplicateData=true` yields RSSI ticks for
-`84:AC:60:4A:43:F0` (Classic inquiry replies) but never an
-`AdvertisingData` / `ManufacturerData` / `ServiceData` update. The QCY
-manufacturer CompanyID `0x521c` and the `0000a001` service are never seen.
-LE-only scans (`btmgmt`, `hcitool lescan`) are not permitted without root on
-the probe machine. The only other LE device observed during the window was an
-unrelated Microsoft Swift-Pair presence advertisement.
-
-## GATT / profile connection attempts
-
-`ConnectProfile` on this BlueZ 5.87 build:
-
-| Profile | Result |
-|:--|:--|
-| `00001800-...` (GAP) | `org.bluez.Error.BREDR.ProfileUnavailable: No more profiles to connect to` |
-| `0000a001-...` (QCY service) | same |
-| `00001001-...` (QCY write) | same |
-
-`bluetoothctl connect` reconnects the Classic audio set only.
-
-## SPP (Serial Port 00001101)
-
-An `org.bluez.Profile1` registered for the SPP UUID is connected by the device
-(`NewConnection` with a stream fd). Sending the QCY-standard frames below
-receives no response within the probe window; the channel stays open and
-silent. Jieli variants (see Quicky protocol-variant table) route control on a
-Jieli-specific BLE command set that this device never advertises.
-
-```
-fe 01 02                 battery query
-fe 01 0c 01 00           mode 0x0c len1 00
-fe 01 17 01 00           anc-setting 0x17 len1 00
-fe 01 30                 version query
-```
-
-## Conclusion
-
-No bytes that answer a control request. The battery figure observed through
-BlueZ is 70 % (single value; the H3 reports one battery for the headset).
+# Run: tools/qcy_probe.py 84:AC:60:4A:43:F0 --spp --listen 2
+# Date: 2026-10-01T23:40:23Z
+2026-10-01T23:40:23.584+00:00 TX fe 01 02
+2026-10-01T23:40:24.089+00:00 TX fe 01 0c 01 00
+2026-10-01T23:40:24.593+00:00 TX fe 01 17 01 00
+2026-10-01T23:40:25.098+00:00 TX fe 01 30
