@@ -2083,11 +2083,8 @@ What the probe tried and what the device did:
   `00001800` (GAP), `0000a001` (QCY service) and `00001001` (QCY write) all
   answer `org.bluez.Error.BREDR.ProfileUnavailable: No more profiles to
   connect to`.
-- **Serial Port connects and then says nothing.** A locally-registered
-  `org.bluez.Profile1` for `00001101` is connected by the device
-  (`NewConnection` with a stream fd), but the QCY-standard frames
-  (`fe 01 02` battery, `fe 01 0c` mode, `fe 01 17` ANC setting,
-  `fe 01 30` version) get no reply over the open channel.
+- **Serial Port (00001101) test.** The exact request frames sent in the SPP test appear in the live capture:
+  `fe 01 02`, `fe 01 0c 01 00`, `fe 01 17 01 00`, `fe 01 30`. No replies were observed over the open channel.
 
 So the mode row is correct as `unsupported`: there is a battery (one figure
 via BlueZ, 70 % in these captures) and no control channel the plugin could
