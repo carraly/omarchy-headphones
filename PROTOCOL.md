@@ -2049,46 +2049,62 @@ not a successful test. See `docs/TOZO-NC9-PRO-TESTS.md` for the final live repor
 
 ## QCY H3: battery only, no reachable control channel
 
-Owner: [@carraly](https://github.com/carraly). The evidence is in
+Owner: [@carraly](https://github.com/carraly). The evidence is
 [`docs/captures/qcy-h3-bluetoothctl.txt`](docs/captures/qcy-h3-bluetoothctl.txt)
 (the BlueZ device view) and
 [`docs/captures/qcy-h3-live.txt`](docs/captures/qcy-h3-live.txt) (the live
-probe). This model is documented as a battery-only finding because that is
-the whole of what the headset answered on this host: the battery figure via
-BlueZ's native battery service, and nothing on any control channel.
+probe, complete and unedited). This model is a battery-only finding because
+that is the whole of what the headset answered on this host: the battery
+figure through BlueZ's own battery service, and nothing on any control
+channel.
 
-A **QCY H3** (`84:AC:60:4A:43:F0`, public). Its Classic SDP lists only the
-standard set — Serial Port `00001101`, Audio Sink `0000110b`,
-A/V Remote Control Target `0000110c`, A2DP `0000110d`, AVRCP `0000110e`,
-Handsfree `0000111e`, PnP `00001200` — and no GATT UUID. The hardware is a
-Jieli JL7018F6 (per teardown), which Quicky's protocol-variant table routes
-via its `JLDeviceImpl` Jieli BLE command set rather than the pure QCY
-Standard `0000a001`/`00001001` channel.
+A **QCY H3** (`84:AC:60:4A:43:F0`, public). Its Classic SDP carries only the
+standard set the BlueZ view lists — Serial Port `00001101`, Audio Sink
+`0000110b`, A/V Remote Control Target `0000110c`, A/V Remote Control
+`0000110e`, Handsfree `0000111e`, PnP Information `00001200` — and no GATT
+UUID. The hardware is a Jieli JL7018F6 (per teardown), which Quicky's
+protocol-variant table routes via its `JLDeviceImpl` Jieli BLE command set
+rather than the pure QCY Standard `0000a001`/`00001001` channel.
 
-What the probe tried and what the device did:
+What one `--spp` run shows, with the H3 connected, is these four things:
 
-- **LE advertisement: never seen.** `StartDiscovery` (with
-  `DuplicateData=true` and no filter, and during a page-then-scan window)
-  returns only RSSI ticks — Classic inquiry replies — for the known device,
-  with no `AdvertisingData`, `ManufacturerData`, `ServiceData` at any point.
-  The QCY discovery CompanyID `0x521c` and a control MAC are absent: the H3
-  appears to have no separate control address, and it does not advertise its
-  `a001` service to this BlueZ. (`hcitool lescan` needs root, which the
-  probe machine does not grant.)
-- **GATT: no service ever appears.** The managed-objects tree under the
-  device path holds only the BR/EDR media endpoints (`sep1`…`sep5`, `fd0`);
-  no `GattService1`/`GattCharacteristic1` object appears at any point of a
-  45-second probe.
-- **`ConnectProfile` on the QCY channel: refused.**
-  `00001800` (GAP), `0000a001` (QCY service) and `00001001` (QCY write) all
-  answer `org.bluez.Error.BREDR.ProfileUnavailable: No more profiles to
-  connect to`.
-- **Serial Port (00001101) test.** The exact request frames sent in the SPP test appear in the live capture:
-  `fe 01 02`, `fe 01 0c 01 00`, `fe 01 17 01 00`, `fe 01 30`. No replies were observed over the open channel.
+- **GATT: no tree at all.** The probe waits the 45 seconds it allows for the
+  device's managed-objects tree to fill, and then logs
+  `GATT TREE 0 services 0 characteristics under /org/bluez/hci0/dev_84_AC_60_4A_43_F0`:
+  no `GattService1` and no `GattCharacteristic1` object appears, only the
+  BR/EDR media endpoints.
+- **The Serial Port channel: the device does not name one.** The channel is
+  not guessed: the probe asks the headset's own SDP server, which is on PSV 1,
+  for the `00001101` record and its RFCOMMChannel attribute. The capture has
+  `SDP CONNECTED channel 1`, then the `ServiceSearchAttributeRequest`
+  (`06 00 01 00 18 35 04 18 00 11 01 …`), then `SDP RX none` — the socket
+  opens and the server answers no SDP request, so no channel number comes
+  back to read out of the record. Hence `SPP SDP CHANNEL none`.
+- **Every other channel was tried.** With no channel from the record, the
+  probe connects PSVs 2…30 one at a time: all but two answer `Connection
+  refused` (4 answers `Device or resource busy`), and **10 and 11 open**.
+- **Frames sent on both, nothing back.** On each open channel the four read
+  requests go out one at a time, each followed by a 500 ms read: `TX fe 01
+  02`, `TX fe 01 0c`, `TX fe 01 17`, `TX fe 01 30`, and `RX none` after every
+  one of them, on channel 10 and again on channel 11. Not one byte comes back
+  on either, and no `RX closed by peer` line appears: the headset holds the
+  channel open and says nothing to it.
 
-So the mode row is correct as `unsupported`: there is a battery (one figure
-via BlueZ, 70 % in these captures) and no control channel the plugin could
-hold. No `qcy-bridge` exists or is intended from this finding; the QCY
-Standard BLE channel and the Jieli variant both stay unreachable without a
-new capture from a channel that opens, and the plugin does not invent bytes
-for a headset that answered none.
+So the mode row is correct as `unsupported`: there is a battery (one figure,
+70 % in the bluetoothctl capture) and no control channel the plugin could
+hold. No `qcy-bridge` exists or is intended from this finding. The two
+channels that open answer nothing to the frames the QCY standard table lists,
+and the plugin does not invent bytes for a headset that answered none.
+
+### Where those four frames come from
+
+`fe 01 02`, `fe 01 0c`, `fe 01 17` and `fe 01 30` are the read requests of the
+QCY standard protocol table — battery, listening mode, anc setting, version —
+the same candidate set as `REQUESTS` in `tools/qcy_probe.py`. They come from
+public reverse-engineering of the QCY/Quicky protocol, not from anything this
+headset ever answered; the capture above is what the headset does with them,
+which is nothing. The `01 00` tails of `fe 01 0c 01 00` and `fe 01 17 01 00`
+in the earlier capture file are the length and the value of a *setting*
+(mode 0, anc 0), so the probe sends the bare queries `fe 01 0c` and `fe 01
+17` instead. Nothing in `SPP_FRAMES` carries a parameter at all, so no run of
+this probe can set a mode on anybody's headphones.
