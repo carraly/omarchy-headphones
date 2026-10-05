@@ -2073,26 +2073,32 @@ What one `--spp` run shows, with the H3 connected, is these four things:
   `GATT TREE 0 services 0 characteristics under /org/bluez/hci0/dev_84_AC_60_4A_43_F0`:
   no `GattService1` and no `GattCharacteristic1` object appears, only the
   BR/EDR media endpoints.
-- **The Serial Port channel: the device does not name one.** The channel is
-  not guessed: the probe asks the headset's own SDP server, which is on PSV 1,
-  for the `00001101` record and its RFCOMMChannel attribute. The capture has
-  `SDP CONNECTED channel 1`, then the `ServiceSearchAttributeRequest`
-  (`06 00 01 00 18 35 04 18 00 11 01 …`), then `SDP RX none` — the socket
-  opens and the server answers no SDP request, so no channel number comes
-  back to read out of the record. Hence `SPP SDP CHANNEL none`.
-- **Every other channel was tried.** With no channel from the record, the
-  probe connects PSVs 2…30 one at a time: all but two answer `Connection
-  refused` (4 answers `Device or resource busy`), and **10 and 11 open**.
-- **Frames sent on both, nothing back.** On each open channel the four read
+- **The SDP server answers, and names no channel.** SDP is not an RFCOMM
+  service: it is an L2CAP service on PSM 1, so the probe opens
+  `SDP CONNECTED psm 1` there and sends the `ServiceSearchAttributeRequest` for
+  the `00001101` record (`06 00 01 00 18 35 04 18 00 11 01 …`). It is answered
+  in 7 ms — `SDP RX 07 00 01 00 06 00 03 36 00 00 00`, a
+  ServiceSearchAttributeResponse (`07`) to transaction 1 whose 6-byte parameter
+  carries no attribute list at all, every element in it being zero-length. No
+  RFCOMMChannel value (attribute `0x0004`) is anywhere in it, so no channel
+  number comes back to read out of the record, and the probe logs
+  `SPP SDP CHANNEL none (no RFCOMMChannel in the Serial Port record)`. The
+  headset answers the request and still never names a Serial Port channel.
+  (An earlier run read `SDP RX none` because it asked on RFCOMM PSV 1, which is
+  the multiplexing channel, not the SDP server.)
+- **Every RFCOMM PSV was tried.** With no channel from the record, the probe
+  connects PSVs 1…30 one at a time: all but three answer `Connection refused`,
+  and **1, 10 and 11 open**.
+- **Frames sent on all three, nothing back.** On each open channel the four read
   requests go out one at a time, each followed by a 500 ms read: `TX fe 01
   02`, `TX fe 01 0c`, `TX fe 01 17`, `TX fe 01 30`, and `RX none` after every
-  one of them, on channel 10 and again on channel 11. Not one byte comes back
-  on either, and no `RX closed by peer` line appears: the headset holds the
-  channel open and says nothing to it.
+  one of them, on channel 1 and again on 10 and again on 11. Not one byte comes
+  back on any of them, and no `RX closed by peer` line appears: the headset
+  holds the channel open and says nothing to it.
 
 So the mode row is correct as `unsupported`: there is a battery (one figure,
 70 % in the bluetoothctl capture) and no control channel the plugin could
-hold. No `qcy-bridge` exists or is intended from this finding. The two
+hold. No `qcy-bridge` exists or is intended from this finding. The three
 channels that open answer nothing to the frames the QCY standard table lists,
 and the plugin does not invent bytes for a headset that answered none.
 

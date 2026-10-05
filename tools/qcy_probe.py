@@ -10,8 +10,8 @@ every notify-capable service, and logs raw TX/RX bytes with timestamps. It
 writes nothing to the device except the requests explicitly asked for.
 
 `--spp` takes the other door as well: it asks the headset's own SDP server
-(PSV 1) which channel serves Serial Port, opens a Bluetooth RFCOMM socket on
-that channel — or, when the record is unreadable, on each channel that opens —
+(L2CAP PSM 1) which channel serves Serial Port, opens a Bluetooth RFCOMM socket
+on that channel — or, when the record is unreadable, on each channel that opens —
 and sends the read requests of the QCY standard table there. No frame with a
 trailing parameter is sent, so nothing in this run can set anything.
 
@@ -73,12 +73,13 @@ REQUESTS = {
 
 # --- Serial Port (00001101) over RFCOMM.
 #
-# The channel is asked for rather than guessed: an SDP server answers on PSV
-# 1, and a Serial Port record carries its RFCOMMChannel in attribute 0x0004.
-# When the headset answers nothing there, the channels it does open are the
-# only candidates left, and each is logged with what it did.
-SDP_PSV = 1
-SPP_PSV_SCAN = tuple(range(2, 31))
+# The channel is asked for rather than guessed: the SDP server answers over
+# L2CAP on PSM 1, and a Serial Port record carries its RFCOMMChannel in
+# attribute 0x0004. When the headset answers nothing there, the RFCOMM PSVs
+# it does open are the only candidates left, and each is logged with what it
+# did.
+SDP_PSM = 1
+SPP_PSV_SCAN = tuple(range(1, 31))
 SDP_WAIT = 4.0
 SPP_READ_MS = 500
 SPP_CONNECT_TIMEOUT = 6.0
@@ -340,16 +341,32 @@ class Probe:
                 break
         return data
 
+    def l2cap(self, psm, label):
+        """A connected L2CAP socket on `psm`, or None with the error logged."""
+        sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET,
+                             socket.BTPROTO_L2CAP)
+        sock.settimeout(SPP_CONNECT_TIMEOUT)
+        try:
+            sock.connect((self.address, psm))
+        except OSError as error:
+            self.wire("%s CONNECT FAILED psm %d: %s"
+                      % (label, psm, error.strerror or error))
+            sock.close()
+            return None
+        self.wire("%s CONNECTED psm %d" % (label, psm))
+        return sock
+
     def sdp_channel(self):
         """The channel the headset's SDP record gives Serial Port, or None.
 
-        Its SDP server is on PSV 1, so the Serial Port (00001101) record is
-        asked for there and its RFCOMMChannel attribute read out of the
-        answer, rather than any channel being guessed.
+        The SDP server speaks over L2CAP, not RFCOMM: it is on PSM 1, so the
+        Serial Port (00001101) record is asked for there and its RFCOMMChannel
+        attribute read out of the answer, rather than any channel being
+        guessed.
         """
-        sock = self.rfcomm(SDP_PSV, "SDP")
+        sock = self.l2cap(SDP_PSM, "SDP")
         if sock is None:
-            self.wire("SPP SDP CHANNEL none (PSV %d would not open)" % SDP_PSV)
+            self.wire("SPP SDP CHANNEL none (PSM %d would not open)" % SDP_PSM)
             return None
         try:
             self.wire("SDP TX " + SDP_QUERY.hex(" "))
@@ -361,19 +378,19 @@ class Probe:
             pdu = self.read_pdu(sock, SDP_WAIT)
             if not pdu:
                 self.wire("SDP RX none")
-                self.wire("SPP SDP CHANNEL none (PSV %d answered no SDP request)"
-                          % SDP_PSV)
+                self.wire("SPP SDP CHANNEL none (PSM %d answered no SDP request)"
+                          % SDP_PSM)
                 return None
             self.wire("SDP RX " + pdu.hex(" "))
             channels = sdp_channels(pdu)
         finally:
             sock.close()
-            self.wire("SDP CLOSED channel %d" % SDP_PSV)
+            self.wire("SDP CLOSED psm %d" % SDP_PSM)
         if not channels:
             self.wire("SPP SDP CHANNEL none (no RFCOMMChannel in the Serial Port record)")
             return None
-        self.wire("SPP SDP CHANNEL %d (Serial Port record on PSV %d)"
-                  % (channels[0], SDP_PSV))
+        self.wire("SPP SDP CHANNEL %d (Serial Port record on PSM %d)"
+                  % (channels[0], SDP_PSM))
         return channels[0]
 
     def spp_exchange(self, psv):
