@@ -1170,10 +1170,63 @@ Deno.test("extra modes come from the backend row, and only that row", () => {
   for (const row of Model.BACKENDS.filter(r => r.name !== "tozo")) {
     assertEquals(Model.modeNames(row.name), Model.MODE_ORDER, row.name);
     assertEquals(Model.modesAvailable({ available: six }, row.name), ["off", "anc", "ambient"], row.name);
-    assertEquals(Model.modeOptions(Model.MODE_ORDER, row.name).map(o => o.label),
-      ["Off", "ANC", "Ambient", "TalkThru"], row.name);
+    // A row that renames a mode says so with modeLabels (Redmi's Transparency);
+    // every other row keeps the four default names.
+    if (!row.modeLabels) {
+      assertEquals(Model.modeOptions(Model.MODE_ORDER, row.name).map(o => o.label),
+        ["Off", "ANC", "Ambient", "TalkThru"], row.name);
+    }
   }
+  assertEquals(Model.modeOptions(Model.MODE_ORDER, "redmi").map(o => o.label),
+    ["Off", "ANC", "Transparency", "TalkThru"]);
   assertEquals(Model.modesAvailable({ available: six }, ""), ["off", "anc", "ambient"]);
   assertEquals(Model.modesAvailable({}, "tozo"), Model.MODE_ORDER);
   assertEquals(Model.allModeNames(), [...Model.MODE_ORDER, "wind", "leisure", "adaptive"]);
+});
+
+// ---- Redmi Buds 5: its SDP record, as docs/captures/redmi-buds-5-bluetoothctl.txt
+//      printed it, and what must not be taken for it.
+
+const REDMI_BUDS_5_UUIDS = [
+  "00000001-0000-1000-8000-00805f9b34fb",
+  "00001101-0000-1000-8000-00805f9b34fb",
+  "00001108-0000-1000-8000-00805f9b34fb",
+  "0000110b-0000-1000-8000-00805f9b34fb",
+  "0000110c-0000-1000-8000-00805f9b34fb",
+  "0000110e-0000-1000-8000-00805f9b34fb",
+  "0000110f-0000-1000-8000-00805f9b34fb",
+  "0000111e-0000-1000-8000-00805f9b34fb",
+  "00001203-0000-1000-8000-00805f9b34fb",
+  "0000fd2d-0000-1000-8000-00805f9b34fb",
+  "66666666-6666-6666-6666-666666666666",
+  "99999999-9999-9999-9999-999999999999",
+  "df21fe2c-2515-4fdb-8886-f12c4d67927c",
+];
+const BLE_ADDRESS = "48:B4:41:00:00:01";
+
+Deno.test("Redmi Buds 5 is picked by its name and the 0xFD2D service, with or without a Fast Pair address", () => {
+  assertEquals(Model.controlBackend(REDMI_BUDS_5_UUIDS, "", "Redmi Buds 5"), "redmi");
+  assertEquals(Model.controlBackend(REDMI_BUDS_5_UUIDS, BLE_ADDRESS, "Redmi Buds 5"), "redmi");
+  assertEquals(Model.bridgeFor("redmi"), "redmi-bridge");
+  assertEquals(Model.bridgeArgs("redmi", { address: "AA:BB:CC:00:00:01", name: "Redmi Buds 5" }),
+    ["AA:BB:CC:00:00:01"]);
+  assertEquals(Model.isClassicBackend("redmi"), true);
+});
+
+Deno.test("neither the Redmi name nor its service alone is the claim", () => {
+  const withoutService = REDMI_BUDS_5_UUIDS.filter((id) => !id.startsWith("0000fd2d"));
+  assertEquals(Model.controlBackend(withoutService, "", "Redmi Buds 5"), "");
+  assertEquals(Model.controlBackend(REDMI_BUDS_5_UUIDS, "", "Some Other Buds"), "");
+  assertEquals(Model.controlBackend(REDMI_BUDS_5_UUIDS, "", ""), "");
+});
+
+Deno.test("the Redmi row takes no other device's claim, and every other claim still wins its own", () => {
+  const huawei = Model.controlBackend(["00001101-0000-1000-8000-00805f9b34fb"], "", "HUAWEI FreeBuds SE 2");
+  assertEquals(huawei, "huawei");
+  // The Buds 5 Pro advertise CSR GAIA, and stay on the xiaomi row even if they
+  // also list 0xFD2D.
+  assertEquals(Model.controlBackend([Model.BACKENDS.find((r) => r.name === "xiaomi").uuids[0],
+    "0000fd2d-0000-1000-8000-00805f9b34fb"], "", "Redmi Buds 5"), "xiaomi");
+  // A Fast Pair address alone, as for any other headset, is still the JBL row.
+  assertEquals(Model.controlBackend([], BLE_ADDRESS, "Redmi Buds 5"), "jbl");
 });
