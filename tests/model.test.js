@@ -669,6 +669,31 @@ Deno.test("a sony device always has a UUID to register", () => {
   }
 });
 
+// What DeviceFollower.qml used to decide by comparing controlBackend with a
+// brand's name now comes from the rows. Each answer is the one the old check
+// gave, row by row, so no device is sent anything different.
+Deno.test("the rows answer what the follower once asked by brand name", () => {
+  for (const row of Model.BACKENDS) {
+    assertEquals(Model.isBleBackend(row.name), row.name === "jbl", row.name);
+    assertEquals(Model.hasAmbientDial(row.name), row.name === "sony" || row.name === "soundcore", row.name);
+    const command = { sony: "voice", soundcore: "wind" }[row.name] || "";
+    assertEquals(Model.ambientRange(row.name).command, command, row.name);
+    const key = row.name === "soundcore" ? "Wind" : "Voice";
+    assertEquals(Model.ambientRange(row.name).key, key, row.name);
+    if (row.name !== "sony")
+      assertEquals(Model.bridgeUuid(row.name, [Model.SONY_MDR_V2_UUID, ...(row.uuids || [])]), "", row.name);
+  }
+  for (const name of ["", "nonesuch"]) {
+    assertEquals(Model.isBleBackend(name), false);
+    assertEquals(Model.hasAmbientDial(name), false);
+    assertEquals(Model.ambientRange(name).command, "");
+    assertEquals(Model.bridgeUuid(name, [Model.SONY_MDR_V2_UUID]), "");
+  }
+  assertEquals(Model.bridgeUuid("sony", [Model.SONY_MDR_V1_UUID, Model.SONY_MDR_V2_UUID]), Model.SONY_MDR_V2_UUID);
+  assertEquals(Model.bridgeUuid("sony", [" " + Model.SONY_MDR_V1_UUID.toUpperCase()]), Model.SONY_MDR_V1_UUID);
+  assertEquals(Model.bridgeUuid("sony", [Model.CSR_GAIA_UUID]), "");
+});
+
 Deno.test("modesAvailable defaults to the JBL four and filters what Sony names", () => {
   // The JBL bridge names none: its protocol has one fixed set of slots.
   assertEquals(Model.modesAvailable({ modes: true, mode: "anc" }), [
@@ -999,10 +1024,13 @@ Deno.test("bridgeArgs is what each bridge was always sent", () => {
 });
 
 Deno.test("ambientRange is Soundcore's dial on Soundcore and Sony's everywhere else", () => {
-  assertEquals(Model.ambientRange("soundcore"), { min: 1, max: 5, voice: "Wind noise reduction" });
-  assertEquals(Model.ambientRange("sony"), { min: 0, max: 20, voice: "Focus on voice" });
+  assertEquals(Model.ambientRange("soundcore"),
+    { min: 1, max: 5, voice: "Wind noise reduction", command: "wind", key: "Wind" });
+  assertEquals(Model.ambientRange("sony"),
+    { min: 0, max: 20, voice: "Focus on voice", command: "voice", key: "Voice" });
   for (const name of ["jbl", "nothing", "xiaomi", "samsung", "oppo", "", "nope"]) {
-    assertEquals(Model.ambientRange(name), { min: 0, max: 20, voice: "Focus on voice" }, name);
+    assertEquals(Model.ambientRange(name),
+      { min: 0, max: 20, voice: "Focus on voice", command: "", key: "Voice" }, name);
   }
 });
 

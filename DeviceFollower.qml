@@ -169,7 +169,7 @@ Item {
   property var ancState: ({})
   property bool ancEnabled: true
   readonly property bool jblWanted: useModeControl && useFastPair && ancEnabled && connected
-    && controlBackend === "jbl"
+    && Model.isBleBackend(controlBackend)
     && bleAddress !== ""
     && modeSupportKnown !== 0
     && !ancModelParked
@@ -201,11 +201,11 @@ Item {
   property var deviceUuids: []
   readonly property string controlBackend: Model.controlBackend(deviceUuids, bleAddress, reportedName)
   readonly property bool classicBackend: Model.isClassicBackend(controlBackend)
-  // Which of Sony's two MDR services this device serves. Both read as "sony",
-  // and both come out of the same UUID list, so this is non-empty exactly when
-  // controlBackend is "sony": the bridge is sent an address, or an address and
-  // a UUID, and never a UUID belonging to some other brand's bridge.
-  readonly property string sonyUuid: controlBackend === "sony" ? Model.sonyUuidFor(deviceUuids) : ""
+  // Which of its row's services this device serves, for a bridge that takes
+  // one (Sony's two MDR generations both read as "sony"). Empty for every row
+  // whose args do not name "uuid", so a bridge is never sent a UUID belonging
+  // to some other brand's bridge.
+  readonly property string bridgeUuid: Model.bridgeUuid(controlBackend, deviceUuids)
 
   readonly property bool ancSupported: ancState.modes === true
   readonly property string ancMode: String(ancState.mode || "")
@@ -280,6 +280,7 @@ Item {
   readonly property int ambientMin: ambientRange.min
   readonly property int ambientMax: ambientRange.max
   readonly property string ambientVoiceLabel: ambientRange.voice
+  readonly property string ambientVoiceKey: ambientRange.key
 
   readonly property int bluezLevel: Model.batteryLevel(device)
   // The bar carries one number: the headset's own figure where there is only
@@ -479,26 +480,25 @@ Item {
     return true
   }
 
-  // How much of the room comes through in Ambient, 0-20. Sony only — the JBL
-  // protocol has one Ambient Aware and no dial. The bridge switches the headset
-  // to ambient as part of it, because the level is stored only by a set that
-  // carries it: sending a level while Noise Cancelling is on changes nothing.
+  // How much of the room comes through in Ambient, on a row with a dial (Sony
+  // 0-20, Soundcore 1-5) — the JBL protocol has one Ambient Aware and no dial.
+  // The bridge switches the headset to ambient as part of it, because the level
+  // is stored only by a set that carries it: sending a level while Noise
+  // Cancelling is on changes nothing.
   function setAmbientLevel(value) {
-    if (!classicLive("sony") && !classicLive("soundcore")) return false
+    if (!Model.hasAmbientDial(controlBackend) || !classicLive(controlBackend)) return false
     var level = Math.max(ambientMin, Math.min(ambientMax, Math.round(Number(value))))
     if (!isFinite(level)) return false
     classicBridge.write("level " + level + "\n")
     return true
   }
 
-  // Focus on Voice (Sony) / Wind Noise Reduction (Soundcore)
+  // Focus on Voice (Sony) / Wind Noise Reduction (Soundcore): the word the
+  // row's bridge reads for the switch is the row's.
   function setAmbientVoice(on) {
-    if (classicLive("soundcore")) {
-      classicBridge.write("wind " + (on ? "on" : "off") + "\n")
-      return true
-    }
-    if (!classicLive("sony")) return false
-    classicBridge.write("voice " + (on ? "on" : "off") + "\n")
+    var command = ambientRange.command
+    if (!command || !classicLive(controlBackend)) return false
+    classicBridge.write(command + " " + (on ? "on" : "off") + "\n")
     return true
   }
 
@@ -749,7 +749,7 @@ Item {
     command: follower.classicBridgePath === ""
       ? ["true"]
       : [follower.classicBridgePath].concat(Model.bridgeArgs(follower.controlBackend, {
-          address: follower.address, uuid: follower.sonyUuid, name: follower.reportedName }))
+          address: follower.address, uuid: follower.bridgeUuid, name: follower.reportedName }))
     stdinEnabled: true
     stdout: SplitParser {
       onRead: function(line) { follower.applyAncLine(line) }
