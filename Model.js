@@ -540,6 +540,9 @@ var BACKENDS = [
     modelNames: ["Redmi Buds 5"],
     modelUuids: [REDMI_FD2D_UUID],
     args: ["address"],
+    // Their Fast Pair stream opens and stays empty: the bridge's figures are
+    // the battery, and an empty stream must not stand in front of them.
+    fastPairWithoutBattery: true,
     // What the Xiaomi Earbuds app calls the second mode.
     modeLabels: { ambient: "Transparency" } },
   { name: "jbl", bridge: "jbl-bridge",
@@ -587,6 +590,14 @@ function controlBackend(uuids, bleAddress, reportedName) {
 var CLASSIC_BACKENDS = []
 for (var backendIndex = 0; backendIndex < BACKENDS.length; backendIndex++)
   if (!BACKENDS[backendIndex].ble) CLASSIC_BACKENDS.push(BACKENDS[backendIndex].name)
+
+// True for a backend whose row says its devices open the Fast Pair stream and
+// never send a battery on it. Such a stream does not count as one until it
+// carries a level; every other row keeps the stream whatever it carries.
+function fastPairWithoutBattery(backend) {
+  var row = backendRow(backend)
+  return !!(row && row.fastPairWithoutBattery)
+}
 
 function isClassicBackend(backend) {
   return CLASSIC_BACKENDS.indexOf(str(backend)) !== -1

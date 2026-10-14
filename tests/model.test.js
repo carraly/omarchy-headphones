@@ -1170,12 +1170,11 @@ Deno.test("extra modes come from the backend row, and only that row", () => {
   for (const row of Model.BACKENDS.filter(r => r.name !== "tozo")) {
     assertEquals(Model.modeNames(row.name), Model.MODE_ORDER, row.name);
     assertEquals(Model.modesAvailable({ available: six }, row.name), ["off", "anc", "ambient"], row.name);
-    // A row that renames a mode says so with modeLabels (Redmi's Transparency);
-    // every other row keeps the four default names.
-    if (!row.modeLabels) {
-      assertEquals(Model.modeOptions(Model.MODE_ORDER, row.name).map(o => o.label),
-        ["Off", "ANC", "Ambient", "TalkThru"], row.name);
-    }
+    // The four default names, except where the row renames one through
+    // modeLabels (Redmi's Transparency).
+    const defaults = { off: "Off", anc: "ANC", ambient: "Ambient", talkthru: "TalkThru" };
+    assertEquals(Model.modeOptions(Model.MODE_ORDER, row.name).map(o => o.label),
+      Model.MODE_ORDER.map(m => (row.modeLabels || {})[m] || defaults[m]), row.name);
   }
   assertEquals(Model.modeOptions(Model.MODE_ORDER, "redmi").map(o => o.label),
     ["Off", "ANC", "Transparency", "TalkThru"]);
@@ -1211,6 +1210,13 @@ Deno.test("Redmi Buds 5 is picked by its name and the 0xFD2D service, with or wi
   assertEquals(Model.bridgeArgs("redmi", { address: "AA:BB:CC:00:00:01", name: "Redmi Buds 5" }),
     ["AA:BB:CC:00:00:01"]);
   assertEquals(Model.isClassicBackend("redmi"), true);
+});
+
+Deno.test("only the Redmi row lets an empty Fast Pair stream give way to the bridge", () => {
+  for (const row of Model.BACKENDS)
+    assertEquals(Model.fastPairWithoutBattery(row.name), row.name === "redmi", row.name);
+  assertEquals(Model.fastPairWithoutBattery(""), false);
+  assertEquals(Model.fastPairWithoutBattery("nonesuch"), false);
 });
 
 Deno.test("neither the Redmi name nor its service alone is the claim", () => {
