@@ -1,8 +1,8 @@
 # The bridge contract
 
 A bridge is one process that holds one link to one device and mirrors its
-listening mode — or, where the device has none, its battery. Ten exist — `jbl-bridge`, `sony-bridge`, `samsung-bridge`,
-`nothing-bridge`, `xiaomi-bridge`, `soundcore-bridge`, `oppo-bridge`, `bose-bridge`, `tozo-bridge`, `huawei-bridge` — and the shell does not
+listening mode — or, where the device has none, its battery. Eleven exist — `jbl-bridge`, `sony-bridge`, `samsung-bridge`,
+`nothing-bridge`, `xiaomi-bridge`, `soundcore-bridge`, `oppo-bridge`, `bose-bridge`, `tozo-bridge`, `huawei-bridge`, `redmi-bridge` — and the shell does not
 care which is running: they all print the same lines, read the same commands
 and end the same four ways. This file is that contract, written once. A
 bridge's docstring says what is particular to its protocol and points here

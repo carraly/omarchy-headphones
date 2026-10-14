@@ -448,6 +448,7 @@ var SOUNDCORE_UUID_PREFIX = "0cf12d31-fac3-4553-bd80-d6832e7"
 var OPPO_HEYMELODY_UUID = "0000079a-d102-11e1-9b23-00025b00a5a5"
 var BOSE_BMAP_UUID = "00000000-deca-fade-deca-deafdecacaff"
 var BOSE_SPP_UUID = "9b26d8c0-a8ed-440b-95b0-c4714a518bcc"
+var REDMI_FD2D_UUID = "0000fd2d-0000-1000-8000-00805f9b34fb"
 
 // The UUIDs `bluetoothctl info <address>` printed, lowercased.
 // Quickshell.Bluetooth exposes no uuids property, so the SDP record is read the
@@ -530,6 +531,20 @@ var BACKENDS = [
     modelNames: ["HUAWEI FreeBuds SE 2"],
     modelUuids: ["00001101-0000-1000-8000-00805f9b34fb"],
     args: ["address", "name"] },
+  { name: "redmi", bridge: "redmi-bridge",
+    // Battery and noise control (Off / ANC / Transparency): the Redmi Buds 5
+    // send Fast Pair a model id and no battery frame, so everything comes from
+    // the Xiaomi RCSP service on 0xFD2D. Claimed by its reported name and that
+    // service, like the two rows above. The Buds 5 Pro are not this: they speak
+    // Compact GAIA and are the `xiaomi` row.
+    modelNames: ["Redmi Buds 5"],
+    modelUuids: [REDMI_FD2D_UUID],
+    args: ["address"],
+    // Their Fast Pair stream opens and stays empty: the bridge's figures are
+    // the battery, and an empty stream must not stand in front of them.
+    fastPairWithoutBattery: true,
+    // What the Xiaomi Earbuds app calls the second mode.
+    modeLabels: { ambient: "Transparency" } },
   { name: "jbl", bridge: "jbl-bridge",
     ble: true, args: ["bleAddress", "modelId"] }
 ]
@@ -577,6 +592,14 @@ function controlBackend(uuids, bleAddress, reportedName) {
 var CLASSIC_BACKENDS = []
 for (var backendIndex = 0; backendIndex < BACKENDS.length; backendIndex++)
   if (!BACKENDS[backendIndex].ble) CLASSIC_BACKENDS.push(BACKENDS[backendIndex].name)
+
+// True for a backend whose row says its devices open the Fast Pair stream and
+// never send a battery on it. Such a stream does not count as one until it
+// carries a level; every other row keeps the stream whatever it carries.
+function fastPairWithoutBattery(backend) {
+  var row = backendRow(backend)
+  return !!(row && row.fastPairWithoutBattery)
+}
 
 function isClassicBackend(backend) {
   return CLASSIC_BACKENDS.indexOf(str(backend)) !== -1

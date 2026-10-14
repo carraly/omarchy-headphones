@@ -84,6 +84,15 @@ Item {
   // for that second would flash BlueZ's single "Battery" row in their place.
   readonly property bool streaming: reading.stream === true
     && (readerRunning || refreshing)
+    && !(Model.fastPairWithoutBattery(controlBackend) && !streamHasLevels)
+  // A Fast Pair channel that is up but has sent no battery, on a device whose
+  // row says that is all its stream ever does (the Redmi Buds 5): the bridge's
+  // figures are the only ones there are and must not be shadowed by it. Every
+  // other device keeps the stream as it was.
+  readonly property bool streamHasLevels: reading.single === true
+    ? Model.readerLevel(reading, "battery") >= 0
+    : (Model.readerLevel(reading, "left") >= 0 || Model.readerLevel(reading, "right") >= 0
+       || Model.readerLevel(reading, "case") >= 0)
 
   // ---- What the mode bridge said about the battery, on a device whose control
   //      channel carries it (the Nothing one does). Second to the Fast Pair
