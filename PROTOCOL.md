@@ -2270,41 +2270,40 @@ UUID. The hardware is a Jieli JL7018F6 (per teardown), which Quicky's
 protocol-variant table routes via its `JLDeviceImpl` Jieli BLE command set
 rather than the pure QCY Standard `0000a001`/`00001001` channel.
 
-What one `--spp` run shows, with the H3 connected, is these four things:
+What one `--spp` run shows, with the H3 connected, is these three things:
 
 - **GATT: no tree at all.** The probe waits the 45 seconds it allows for the
   device's managed-objects tree to fill, and then logs
   `GATT TREE 0 services 0 characteristics under /org/bluez/hci0/dev_84_AC_60_4A_43_F0`:
   no `GattService1` and no `GattCharacteristic1` object appears, only the
   BR/EDR media endpoints.
-- **The SDP server answers, and names no channel.** SDP is not an RFCOMM
+- **The SDP server names the Serial Port channel.** SDP is not an RFCOMM
   service: it is an L2CAP service on PSM 1, so the probe opens
-  `SDP CONNECTED psm 1` there and sends the `ServiceSearchAttributeRequest` for
-  the `00001101` record (`06 00 01 00 18 35 04 18 00 11 01 …`). It is answered
-  in 7 ms — `SDP RX 07 00 01 00 06 00 03 36 00 00 00`, a
-  ServiceSearchAttributeResponse (`07`) to transaction 1 whose 6-byte parameter
-  carries no attribute list at all, every element in it being zero-length. No
-  RFCOMMChannel value (attribute `0x0004`) is anywhere in it, so no channel
-  number comes back to read out of the record, and the probe logs
-  `SPP SDP CHANNEL none (no RFCOMMChannel in the Serial Port record)`. The
-  headset answers the request and still never names a Serial Port channel.
-  (An earlier run read `SDP RX none` because it asked on RFCOMM PSV 1, which is
-  the multiplexing channel, not the SDP server.)
-- **Every RFCOMM PSV was tried.** With no channel from the record, the probe
-  connects PSVs 1…30 one at a time: all but three answer `Connection refused`,
-  and **1, 10 and 11 open**.
-- **Frames sent on all three, nothing back.** On each open channel the four read
-  requests go out one at a time, each followed by a 500 ms read: `TX fe 01
-  02`, `TX fe 01 0c`, `TX fe 01 17`, `TX fe 01 30`, and `RX none` after every
-  one of them, on channel 1 and again on 10 and again on 11. Not one byte comes
-  back on any of them, and no `RX closed by peer` line appears: the headset
-  holds the channel open and says nothing to it.
+  `SDP CONNECTED psm 1` there and sends a well-formed
+  `SDP_SERVICE_SEARCH_ATTR_REQ` (PDU `0x06`) for the `00001101` record:
+  `06 00 01 00 16 35 03 19 11 01 02 00 35 0c 09 00 00 09 00 01 09 00 04 09 00 05 00`.
+  That is a search pattern holding the 16-bit UUID `0x1101`, then the maximum
+  answer size `0x0200`, then the attribute IDs `0x0000`, `0x0001`, `0x0004`
+  and `0x0005`, then a continuation byte of 0. It is answered 14 ms later with
+  `SDP RX 07 00 01 00 56 …` — an `SDP_SERVICE_SEARCH_ATTR_RSP` (PDU `0x07`)
+  whose AttributeLists hold **two identical Serial Port records**, both with
+  record handle `0x00010004`. Each carries a `ServiceClassIDList` of `0x1101`
+  and a `ProtocolDescriptorList` (attribute `0x0004`) whose RFCOMM entry is
+  `19 00 03 08 01`, i.e. UUID `0x0003` with server channel **1**. The probe
+  logs `SPP SDP CHANNEL 1` and opens that channel.
+- **Frames sent on that channel, nothing back.** On the channel the record
+  names, the four read requests go out one at a time, each followed by a
+  500 ms read: `TX fe 01 02`, `TX fe 01 0c`, `TX fe 01 17`, `TX fe 01 30`,
+  and `RX none` after every one of them. Not one byte comes back, and no
+  `RX closed by peer` line appears: the headset holds the channel open and
+  says nothing to it.
 
 So the mode row is correct as `unsupported`: there is a battery (one figure,
 70 % in the bluetoothctl capture) and no control channel the plugin could
-hold. No `qcy-bridge` exists or is intended from this finding. The three
-channels that open answer nothing to the frames the QCY standard table lists,
-and the plugin does not invent bytes for a headset that answered none.
+hold. The Serial Port record does name channel 1, but the four frames the QCY
+standard table lists are answered there by nothing, so no `qcy-bridge` exists
+or is intended from this finding. The plugin does not invent bytes for a
+headset that answered none.
 
 ### Where those four frames come from
 
@@ -2314,7 +2313,7 @@ the same candidate set as `REQUESTS` in `tools/qcy_probe.py`. They come from
 public reverse-engineering of the QCY/Quicky protocol, not from anything this
 headset ever answered; the capture above is what the headset does with them,
 which is nothing. The `01 00` tails of `fe 01 0c 01 00` and `fe 01 17 01 00`
-in the earlier capture file are the length and the value of a *setting*
-(mode 0, anc 0), so the probe sends the bare queries `fe 01 0c` and `fe 01
-17` instead. Nothing in `SPP_FRAMES` carries a parameter at all, so no run of
-this probe can set a mode on anybody's headphones.
+seen in an earlier probe of this table are the length and the value of a
+*setting* (mode 0, anc 0), so the probe sends the bare queries `fe 01 0c` and
+`fe 01 17` instead. Nothing in `SPP_FRAMES` carries a parameter at all, so no
+run of this probe can set a mode on anybody's headphones.

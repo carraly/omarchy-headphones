@@ -74,22 +74,30 @@ REQUESTS = {
 # --- Serial Port (00001101) over RFCOMM.
 #
 # The channel is asked for rather than guessed: the SDP server answers over
-# L2CAP on PSM 1, and a Serial Port record carries its RFCOMMChannel in
-# attribute 0x0004. When the headset answers nothing there, the RFCOMM PSVs
-# it does open are the only candidates left, and each is logged with what it
-# did.
+# L2CAP on PSM 1, and its answer to the Serial Port (00001101) record carries
+# a ProtocolDescriptorList (attribute 0x0004) whose RFCOMM entry names the
+# channel. When the headset answers nothing there, the RFCOMM PSVs it does
+# open are the only candidates left, and each is logged with what it did.
 SDP_PSM = 1
 SPP_PSV_SCAN = tuple(range(1, 31))
 SDP_WAIT = 4.0
 SPP_READ_MS = 500
 SPP_CONNECT_TIMEOUT = 6.0
-# ServiceSearchAttributeRequest (0x06), transaction 1: the 00001101 record,
-# asking for its handle (0x0000), its class list (0x0001), its channel
-# (0x0004) and its name (0x0005). Both are uint16 elements: 09 01 <hi lo>.
-SDP_QUERY = (b"\x06\x00\x01\x00\x18"
-             + b"\x35\x04\x18\x00\x11\x01"
-             + b"\x35\x10\x09\x01\x00\x00\x09\x01\x00\x01"
-             + b"\x09\x01\x00\x04\x09\x01\x00\x05")
+# ServiceSearchAttributeRequest (0x06), transaction 1. Its parameters are, in
+# order: the 00001101 service search pattern (a sequence holding the 16-bit
+# UUID), MaximumAttributeByteCount (a bare uint16 in 0x0007..0xFFFF), the
+# AttributeIDList (a sequence of uint16 IDs -- the record handle 0x0000, its
+# class list 0x0001, its ProtocolDescriptorList 0x0004 and its browse group
+# 0x0005), and a ContinuationState of 0 for "no more pages".
+#
+# A data element is one header byte -- the type in the top five bits, the size
+# index in the low three -- and then the value, so a uint16 is 09 <hi lo>, not
+# 09 01 <hi lo>, and a 16-bit UUID is 19 <hi lo>.
+SDP_QUERY = (b"\x06\x00\x01\x00\x16"
+             + b"\x35\x03\x19\x11\x01"
+             + b"\x02\x00"
+             + b"\x35\x0c\x09\x00\x00\x09\x00\x01\x09\x00\x04\x09\x00\x05"
+             + b"\x00")
 # The read requests of the same table, in the form that carries no parameter.
 # The 01 00 tails of fe 01 0c 01 00 and fe 01 17 01 00 are the length and the
 # value of a *setting*, so the bare queries are sent instead.
@@ -102,36 +110,79 @@ SPP_FRAMES = (
 
 
 def sdp_element(data, pos):
-    """One SDP data element at `pos`: (type, value bytes, next position)."""
-    kind = data[pos]
-    width = data[pos + 1]
-    # Sequences and alternatives spell their byte count in the size index, as
-    # records encode them; the other types spell their width as a power of two
-    # (0 = 1 byte, 1 = 2, 2 = 4, ...). Anything past a name or a URL stops the
-    # walk in sdp_channels, and the channel precedes both.
-    size = width if kind in (0x35, 0x36) else 1 << width
-    return kind, data[pos + 2:pos + 2 + size], pos + 2 + size
+    """One SDP data element at `pos`: (type, value bytes, next position).
+
+    The header is a single byte: the type in the top five bits, the size index
+    in the low three. Sizes 0..4 are 1, 2, 4, 8 or 16 bytes; for sequences,
+    alternatives, text strings and URLs the size index is 5, 6 or 7 and the
+    length follows in 1, 2 or 4 bytes; nil holds no bytes at all.
+    """
+    kind = data[pos] >> 3
+    index = data[pos] & 7
+    pos += 1
+    if kind in (4, 6, 7, 8):
+        span = {5: 1, 6: 2, 7: 4}.get(index, 0)
+        size = int.from_bytes(data[pos:pos + span], "big") if span else 0
+        pos += span
+    elif kind == 0:
+        size = 0
+    else:
+        size = 1 << index
+    return kind, data[pos:pos + size], pos + size
+
+
+def rfcomm_channels(pdl):
+    """The server channel numbers a ProtocolDescriptorList names.
+
+    The list is a sequence of protocol descriptors, each itself a sequence
+    whose first element is the protocol UUID. The RFCOMM descriptor (0003)
+    carries the channel as its next element, a uint8.
+    """
+    channels = []
+    pos = 0
+    while pos < len(pdl):
+        kind, proto, pos = sdp_element(pdl, pos)
+        if kind != 6:
+            break
+        id_kind, proto_id, head = sdp_element(proto, 0)
+        if id_kind != 3 or proto_id != b"\x00\x03":
+            continue
+        value_kind, channel, _ = sdp_element(proto, head)
+        if value_kind == 1 and channel:
+            channels.append(int.from_bytes(channel, "big"))
+    return channels
 
 
 def sdp_channels(pdu):
-    """The RFCOMMChannel attribute values in a ServiceSearchAttribute answer."""
-    if len(pdu) < 5 or pdu[0] != 0x07:
+    """The RFCOMM server channels in a ServiceSearchAttribute answer.
+
+    The parameters are an AttributeListsByteCount, the AttributeLists (a
+    sequence of per-record sequences) and a ContinuationState. Each record is a
+    flat run of attribute ID / value pairs, and the channel lives inside the
+    value of the ProtocolDescriptorList attribute (0x0004).
+    """
+    if len(pdu) < 7 or pdu[0] != 0x07:
         return []
-    kind, body, _ = sdp_element(pdu, 5)
-    if kind != 0x35:
+    params = pdu[5:5 + int.from_bytes(pdu[3:5], "big")]
+    if len(params) < 3:
+        return []
+    kind, lists, _ = sdp_element(params, 2)
+    if kind != 6:
         return []
     channels = []
     pos = 0
-    while pos + 2 <= len(body):
-        try:
-            id_kind, id_bytes, pos = sdp_element(body, pos)
-            val_kind, val_bytes, pos = sdp_element(body, pos)
-        except IndexError:
+    while pos < len(lists):
+        kind, record, pos = sdp_element(lists, pos)
+        if kind != 6:
             break
-        if id_kind != 0x09:
-            break
-        if int.from_bytes(id_bytes, "big") == 0x0004 and val_kind == 0x08 and val_bytes:
-            channels.append(val_bytes[0])
+        pair = 0
+        while pair < len(record):
+            id_kind, id_bytes, pair = sdp_element(record, pair)
+            value_kind, value, pair = sdp_element(record, pair)
+            if id_kind != 1 or len(id_bytes) != 2:
+                break
+            if int.from_bytes(id_bytes, "big") == 0x0004 and value_kind == 6:
+                channels.extend(rfcomm_channels(value))
     return channels
 
 
@@ -357,12 +408,12 @@ class Probe:
         return sock
 
     def sdp_channel(self):
-        """The channel the headset's SDP record gives Serial Port, or None.
+        """The channel the headset's SDP record names for Serial Port, or None.
 
         The SDP server speaks over L2CAP, not RFCOMM: it is on PSM 1, so the
-        Serial Port (00001101) record is asked for there and its RFCOMMChannel
-        attribute read out of the answer, rather than any channel being
-        guessed.
+        Serial Port (00001101) record is asked for there and the RFCOMM channel
+        is read out of its ProtocolDescriptorList, rather than any channel
+        being guessed.
         """
         sock = self.l2cap(SDP_PSM, "SDP")
         if sock is None:
